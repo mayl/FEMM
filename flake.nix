@@ -87,5 +87,9 @@
           '';
         });
       };
+
+      devShells.${system}.default = pkgs.mkShell {
+        packages = [ pkgs.just ];
+      };
     };
 }
