@@ -1,0 +1,41 @@
+{
+  "description": "Gapped EI-core inductance (Ref: femm.info/wiki/InductanceExample)",
+  "baseline_date": "2026-03-04",
+
+  "scalars": {
+    "Icoil_A":     {"expected": 1.0,                 "tol": 1e-9,   "note": "applied current — set by circuit, must be exact"},
+    "Vcoil_V":     {"expected": 0.0701971203,         "tol": 1e-3,   "note": "circuit voltage (~1%)"},
+    "lambda_Wb":   {"expected": 0.0017636919,         "tol": 2e-5,   "note": "flux linkage (~1%)"},
+    "L_flux_mH":   {"expected": 1.7636919115,         "tol": 0.02,   "note": "inductance via flux/current (~1%)"},
+    "W_J":         {"expected": 8.8184595575e-4,      "tol": 1e-5,   "note": "total magnetic field energy (~1%)"},
+    "L_energy_mH": {"expected": 1.7636919115,         "tol": 0.02,   "note": "inductance via energy integral (~1%)"},
+    "A_gap_Wbm":   {"expected": 2.7988951173e-7,      "tol": 5e-9,   "note": "vector potential at gap centre (0, -0.0125)"},
+    "By_gap_T":    {"expected": 0.0676181860,         "tol": 5e-3,   "note": "flux density y at gap centre"},
+    "Hy_gap_Am":   {"expected": 53808.8427330596,     "tol": 3000.0, "note": "field intensity y at gap centre"},
+    "A_pole_Wbm":  {"expected": 2.0614332633e-7,      "tol": 5e-9,   "note": "vector potential at centre pole (0, 0.25)"},
+    "By_pole_T":   {"expected": 0.0807825067,         "tol": 5e-3,   "note": "flux density y at centre pole"},
+    "Hy_pole_Am":  {"expected": 25.7138705106,        "tol": 2.0,    "note": "field intensity y at centre pole"},
+    "By_yoke_T":   {"expected": 0.0350191606,         "tol": 3e-3,   "note": "flux density y at top yoke (0, 0.625)"},
+    "Hy_yoke_Am":  {"expected": 11.1469450391,        "tol": 1.0,    "note": "field intensity y at top yoke"},
+    "By_icore_T":  {"expected": 0.0330954454,         "tol": 3e-3,   "note": "flux density y at I-core centre (0, -0.15)"},
+    "Hy_icore_Am": {"expected": 10.5346074730,        "tol": 1.0,    "note": "field intensity y at I-core centre"}
+  },
+
+  "ans": {
+    "num_nodes":    {"expected": 5853,  "exact": true,  "note": "mesh node count — deterministic for fixed input"},
+    "num_elements": {"expected": 11418, "exact": true,  "note": "mesh element count"},
+    "A_stats": {
+      "min":   {"expected": -5.5280634182e-4, "tol": 5e-6, "note": "min vector potential across all nodes (~1%)"},
+      "max":   {"expected":  5.5326145667e-4, "tol": 5e-6, "note": "max vector potential"},
+      "mean":  {"expected":  3.2737878529e-6, "tol": 5e-7, "note": "mean vector potential"},
+      "stdev": {"expected":  2.3097770202e-4, "tol": 3e-6, "note": "std dev of vector potential (~1%)"},
+      "p10":   {"expected": -3.6276264627e-4, "tol": 5e-6, "note": "10th percentile"},
+      "p90":   {"expected":  3.8397041959e-4, "tol": 5e-6, "note": "90th percentile"}
+    },
+    "block_values": {
+      "expected": [0.0, 0.0, 0.8184016368032733, -0.8184016368032732, 0.0],
+      "tol": 1e-6,
+      "note": "per-block solution values (flux linkage per block in internal units)"
+    }
+  }
+}

@@ -74,5 +74,18 @@
         inherit femm;
         default = femm;
       };
+
+      apps.${system}.test = {
+        type = "app";
+        program = pkgs.lib.getExe (pkgs.writeShellApplication {
+          name = "femm-test";
+          runtimeInputs = [ pkgs.python3 ];
+          text = ''
+            exec python3 ${self}/tests/runner.py \
+              --flake ${self} \
+              "$@"
+          '';
+        });
+      };
     };
 }
