@@ -17,6 +17,9 @@ Usage:
   # Update expected.json from the current simulation output:
   python3 tests/runner.py --update-baseline tests/inductance
 
+  # Launch FEMM with a visible window for manual inspection:
+  python3 tests/runner.py --interactive tests/radial_bearing
+
   # Show all checks (not just failures):
   python3 tests/runner.py --verbose tests/inductance
 
@@ -170,16 +173,22 @@ def find_flake(start_dir):
     raise FileNotFoundError(f"No flake.nix found above {start_dir}")
 
 
-def run_femm(flake_dir, wine_script, wine_outdir, timeout=300):
-    """Run FEMM headlessly via the Nix flake wrapper. Raises on non-zero exit."""
-    cmd = [
-        "nix", "run", f"{flake_dir}#femm", "--",
-        "/windowhide",
+def run_femm(flake_dir, wine_script, wine_outdir, timeout=300, interactive=False):
+    """Run FEMM via the Nix flake wrapper. Raises on non-zero exit."""
+    cmd = ["nix", "run", f"{flake_dir}#femm", "--"]
+    if not interactive:
+        cmd.append("/windowhide")
+    cmd += [
         f"/lua-script={wine_script}",
         f"/lua-var=outdir={wine_outdir}",
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    if result.returncode != 0:
+    if interactive:
+        cmd.append("/lua-var=interactive=1")
+    if interactive:
+        result = subprocess.run(cmd, timeout=timeout)
+    else:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if result.returncode != 0 and not interactive:
         raise RuntimeError(
             f"FEMM exited with code {result.returncode}\n"
             f"stderr:\n{result.stderr}"
@@ -193,7 +202,7 @@ def linux_to_wine(path):
 
 # ── per-test logic ────────────────────────────────────────────────────────────
 
-def run_test(test_dir, flake_dir, verbose=False, update_baseline=False):
+def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interactive=False):
     test_dir = pathlib.Path(test_dir).resolve()
     name = test_dir.name
 
@@ -207,23 +216,33 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False):
     if not sim_lua.exists():
         print(f"  ERROR: {sim_lua} not found")
         return False
-    if not expected_json.exists() and not update_baseline:
+    if not expected_json.exists() and not update_baseline and not interactive:
         print(f"  ERROR: {expected_json} not found (run with --update-baseline to create)")
         return False
 
     expected = json.loads(expected_json.read_text()) if expected_json.exists() else {}
 
     # ── set up temp workspace (all-lowercase to survive FEMM path lowercasing) ─
-    work_dir = pathlib.Path(f"/tmp/femm_test_{name}")
-    work_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(sim_lua, work_dir / "sim.lua")
-    for f in (work_dir / "results.txt", work_dir / "sim.ans", work_dir / "sim.fem"):
-        f.unlink(missing_ok=True)
+    # Use mkdtemp under /tmp so the path is always lowercase and always fresh.
+    work_dir = pathlib.Path(tempfile.mkdtemp(prefix=f"femm_{name}_", dir="/tmp"))
+    # Copy all files from the test directory (sim.lua + any data files like .fem)
+    for f in test_dir.iterdir():
+        if f.is_file():
+            shutil.copy(f, work_dir / f.name)
 
     wine_script = linux_to_wine(work_dir / "sim.lua")
     wine_outdir = linux_to_wine(work_dir)
 
     # ── run FEMM ──────────────────────────────────────────────────────────────
+    if interactive:
+        print(f"  Launching FEMM interactively (window will open)...")
+        print(f"  Work dir: {work_dir}")
+        try:
+            run_femm(flake_dir, wine_script, wine_outdir, interactive=True)
+        except Exception as e:
+            print(f"  FEMM session ended: {e}")
+        return True
+
     print(f"  Running FEMM (headless)...")
     t0 = time.monotonic()
     try:
@@ -361,6 +380,8 @@ def main():
                         help="Path to Nix flake (default: auto-detect)")
     parser.add_argument("--update-baseline", action="store_true",
                         help="Update expected.json from current simulation output")
+    parser.add_argument("--interactive", "-i", action="store_true",
+                        help="Launch FEMM with the window visible for manual inspection (skips result checking)")
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Show all checks, not just failures")
     args = parser.parse_args()
@@ -395,6 +416,10 @@ def main():
     if args.update_baseline:
         print("Mode:   UPDATE BASELINE")
 
+    if args.interactive and len(test_dirs) != 1:
+        print("ERROR: --interactive requires exactly one test directory.")
+        sys.exit(1)
+
     results = {}
     for test_dir in test_dirs:
         passed = run_test(
@@ -402,6 +427,7 @@ def main():
             flake_dir,
             verbose=args.verbose,
             update_baseline=args.update_baseline,
+            interactive=args.interactive,
         )
         results[test_dir.name] = passed
 

@@ -1,0 +1,216 @@
+{
+  "description": "4-pole radial magnetic bearing (Ref: femm.info/wiki/RadialMagneticBearing)",
+  "baseline_date": "2026-03-06",
+  "scalars": {
+    "I1_A": {
+      "expected": 6.0,
+      "tol": 0.06,
+      "note": ""
+    },
+    "V1_V": {
+      "expected": 1.6336784361,
+      "tol": 0.016336784361,
+      "note": ""
+    },
+    "lam1_Wb": {
+      "expected": 0.0580453698,
+      "tol": 0.000580453698,
+      "note": ""
+    },
+    "L1_mH": {
+      "expected": 9.674228296,
+      "tol": 0.09674228296000001,
+      "note": ""
+    },
+    "I2_A": {
+      "expected": 12.0,
+      "tol": 0.12,
+      "note": ""
+    },
+    "V2_V": {
+      "expected": 3.2673568722,
+      "tol": 0.032673568722,
+      "note": ""
+    },
+    "lam2_Wb": {
+      "expected": 0.1068398587,
+      "tol": 0.001068398587,
+      "note": ""
+    },
+    "L2_mH": {
+      "expected": 8.9033215624,
+      "tol": 0.089033215624,
+      "note": ""
+    },
+    "I3_A": {
+      "expected": 6.0,
+      "tol": 0.06,
+      "note": ""
+    },
+    "V3_V": {
+      "expected": 1.6336784361,
+      "tol": 0.016336784361,
+      "note": ""
+    },
+    "lam3_Wb": {
+      "expected": 0.0580405173,
+      "tol": 0.0005804051729999999,
+      "note": ""
+    },
+    "L3_mH": {
+      "expected": 9.6734195424,
+      "tol": 0.096734195424,
+      "note": ""
+    },
+    "I4_A": {
+      "expected": 0.0,
+      "tol": 1e-09,
+      "note": ""
+    },
+    "V4_V": {
+      "expected": 0.0,
+      "tol": 1e-09,
+      "note": ""
+    },
+    "lam4_Wb": {
+      "expected": 0.0016024561,
+      "tol": 1.6024561e-05,
+      "note": ""
+    },
+    "Bx_right_T": {
+      "expected": -0.0001167777,
+      "tol": 1.167777e-06,
+      "note": ""
+    },
+    "By_right_T": {
+      "expected": -0.0275304865,
+      "tol": 0.000275304865,
+      "note": ""
+    },
+    "Bx_top_T": {
+      "expected": 0.051153429,
+      "tol": 0.00051153429,
+      "note": ""
+    },
+    "By_top_T": {
+      "expected": 0.0010466751,
+      "tol": 1.0466751e-05,
+      "note": ""
+    },
+    "Bx_left_T": {
+      "expected": -0.0009756673,
+      "tol": 9.756673e-06,
+      "note": ""
+    },
+    "By_left_T": {
+      "expected": 0.0270168928,
+      "tol": 0.000270168928,
+      "note": ""
+    },
+    "Bx_bottom_T": {
+      "expected": -2.25246e-05,
+      "tol": 2.25246e-07,
+      "note": ""
+    },
+    "By_bottom_T": {
+      "expected": -5.4664e-06,
+      "tol": 5.4664e-08,
+      "note": ""
+    },
+    "Br_right_T": {
+      "expected": -0.0001167777,
+      "tol": 1.167777e-06,
+      "note": ""
+    },
+    "Br_top_T": {
+      "expected": 0.0010466751,
+      "tol": 1.0466751e-05,
+      "note": ""
+    },
+    "Br_left_T": {
+      "expected": 0.0009756673,
+      "tol": 9.756673e-06,
+      "note": ""
+    },
+    "Br_bottom_T": {
+      "expected": 5.4664e-06,
+      "tol": 5.4664e-08,
+      "note": ""
+    },
+    "B_rotor_T": {
+      "expected": 0.6524040389,
+      "tol": 0.006524040389,
+      "note": ""
+    }
+  },
+  "ans": {
+    "num_nodes": {
+      "expected": 22919,
+      "exact": true,
+      "note": "mesh node count \u2014 deterministic for fixed input"
+    },
+    "num_elements": {
+      "expected": 45551,
+      "exact": true,
+      "note": "mesh element count"
+    },
+    "A_stats": {
+      "min": {
+        "expected": -0.005436712089232077,
+        "tol": 5.4367120892320775e-05,
+        "note": ""
+      },
+      "max": {
+        "expected": 0.011507076507954848,
+        "tol": 0.00011507076507954848,
+        "note": ""
+      },
+      "mean": {
+        "expected": -0.0005472356199338592,
+        "tol": 5.4723561993385925e-06,
+        "note": ""
+      },
+      "stdev": {
+        "expected": 0.004897389151700895,
+        "tol": 4.897389151700895e-05,
+        "note": ""
+      },
+      "p10": {
+        "expected": -0.004766322448999119,
+        "tol": 4.766322448999119e-05,
+        "note": ""
+      },
+      "p90": {
+        "expected": 0.005626647743225786,
+        "tol": 5.626647743225786e-05,
+        "note": ""
+      }
+    },
+    "block_values": {
+      "expected": [
+        4.173606738835891,
+        4.173587859533103,
+        -4.173606738835882,
+        -4.173606738835884,
+        8.347213477671774,
+        8.347175719066202,
+        -8.34721347767177,
+        -8.347213477671767,
+        4.173606738835884,
+        4.1735878595331,
+        -4.1736067388358835,
+        -4.173606738835885,
+        0.0,
+        0.0,
+        -0.0,
+        -0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tol": 1e-06,
+      "note": ""
+    }
+  }
+}
