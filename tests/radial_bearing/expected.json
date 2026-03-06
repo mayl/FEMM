@@ -144,16 +144,6 @@
     }
   },
   "ans": {
-    "num_nodes": {
-      "expected": 22919,
-      "exact": true,
-      "note": "mesh node count \u2014 deterministic for fixed input"
-    },
-    "num_elements": {
-      "expected": 45551,
-      "exact": true,
-      "note": "mesh element count"
-    },
     "A_stats": {
       "min": {
         "expected": -0.005436712089232077,

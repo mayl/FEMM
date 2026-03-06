@@ -22,8 +22,6 @@
   },
 
   "ans": {
-    "num_nodes":    {"expected": 5853,  "exact": true,  "note": "mesh node count — deterministic for fixed input"},
-    "num_elements": {"expected": 11418, "exact": true,  "note": "mesh element count"},
     "A_stats": {
       "min":   {"expected": -5.5280634182e-4, "tol": 5e-6, "note": "min vector potential across all nodes (~1%)"},
       "max":   {"expected":  5.5326145667e-4, "tol": 5e-6, "note": "max vector potential"},

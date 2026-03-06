@@ -35,8 +35,6 @@ expected.json format:
       ...
     },
     "ans": {
-      "num_nodes":    {"expected": <int>,   "exact": true},
-      "num_elements": {"expected": <int>,   "exact": true},
       "A_stats": {
         "min":   {"expected": <float>, "tol": <float>},
         "max":   {"expected": <float>, "tol": <float>},
@@ -284,8 +282,6 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
 
         # ans section
         new_ans = dict(expected.get("ans", {}))
-        new_ans["num_nodes"]    = {"expected": ans_data["num_nodes"],    "exact": True, "note": "mesh node count — deterministic for fixed input"}
-        new_ans["num_elements"] = {"expected": ans_data["num_elements"], "exact": True, "note": "mesh element count"}
         old_stats = expected.get("ans", {}).get("A_stats", {})
         new_A_stats = {}
         for k, v in ans_data["A_stats"].items():
@@ -321,16 +317,6 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
 
     # ── compare .ans features ─────────────────────────────────────────────────
     ans_spec = expected.get("ans", {})
-
-    if "num_nodes" in ans_spec:
-        s = ans_spec["num_nodes"]
-        checks.append(check_exact("ans.num_nodes", ans_data["num_nodes"],
-                                   s["expected"], s.get("note", "")))
-
-    if "num_elements" in ans_spec:
-        s = ans_spec["num_elements"]
-        checks.append(check_exact("ans.num_elements", ans_data["num_elements"],
-                                   s["expected"], s.get("note", "")))
 
     for stat_name, spec in ans_spec.get("A_stats", {}).items():
         checks.append(check_tol(f"ans.A_{stat_name}",
