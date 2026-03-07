@@ -1,0 +1,85 @@
+{
+  "description": "N42 NdFeB bar magnet, 0.5\" x 0.25\", magnetized +Y, open boundary (Ref: femm.info/wiki/PermanentMagnetExample)",
+  "baseline_date": "2026-03-06",
+  "scalars": {
+    "By_center_T": {
+      "expected": 0.3771698992,
+      "tol": 0.3,
+      "note": "By at magnet center; reduced from Br~1.33T by demagnetization"
+    },
+    "Bx_center_T": {
+      "expected": 1.66194e-05,
+      "tol": 0.05,
+      "note": "Bx at magnet center; ~0 by left-right symmetry"
+    },
+    "By_above_T": {
+      "expected": 0.1315384551,
+      "tol": 0.1,
+      "note": "By in air 0.25\" above top surface"
+    },
+    "By_below_T": {
+      "expected": 0.131535155,
+      "tol": 0.1,
+      "note": "By in air 0.25\" below bottom surface"
+    },
+    "W_magnet_J": {
+      "expected": 1.2418523454,
+      "tol": 0.001,
+      "note": "Energy stored in magnet region [J]"
+    },
+    "W_air_J": {
+      "expected": 0.53737938656,
+      "tol": 0.0005,
+      "note": "Energy stored in air interior [J]"
+    }
+  },
+  "ans": {
+    "A_stats": {
+      "min": {
+        "expected": -0.00312096949231563,
+        "tol": 3.1209694923156304e-05,
+        "note": ""
+      },
+      "max": {
+        "expected": 0.003120947363067874,
+        "tol": 3.120947363067874e-05,
+        "note": ""
+      },
+      "mean": {
+        "expected": -2.0308134912661344e-06,
+        "tol": 2.0308134912661343e-08,
+        "note": ""
+      },
+      "stdev": {
+        "expected": 0.0008344562330123978,
+        "tol": 8.344562330123979e-06,
+        "note": ""
+      },
+      "p10": {
+        "expected": -0.0008155696625302815,
+        "tol": 8.155696625302816e-06,
+        "note": ""
+      },
+      "p90": {
+        "expected": 0.0008089701728862904,
+        "tol": 8.089701728862904e-06,
+        "note": ""
+      }
+    },
+    "block_values": {
+      "expected": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tol": 1e-06,
+      "note": ""
+    }
+  }
+}
