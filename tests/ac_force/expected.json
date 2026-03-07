@@ -1,0 +1,61 @@
+{
+  "description": "EI-core AC force (Ref: femm.info/wiki/ACForceExample)",
+  "baseline_date": "2026-03-06",
+  "scalars": {
+    "Fy_dc_N": {
+      "expected": 1.1131226063,
+      "tol": 0.01,
+      "note": "DC y-force on I-core via MST [N]; wiki: 1.11289 (MST) / 1.11347 (WST)"
+    },
+    "Fy_ac_dc_N": {
+      "expected": 0.5565612855,
+      "tol": 0.01,
+      "note": "AC time-averaged y-force [N] \u2248 Fy_dc/2 for linear core with 1 A peak"
+    }
+  },
+  "ans": {
+    "A_stats": {
+      "min": {
+        "expected": -0.0005528061479643957,
+        "tol": 5.528061479643957e-06,
+        "note": ""
+      },
+      "max": {
+        "expected": 0.0005532612630661162,
+        "tol": 5.532612630661162e-06,
+        "note": ""
+      },
+      "mean": {
+        "expected": 3.2737877389837874e-06,
+        "tol": 3.273787738983788e-08,
+        "note": ""
+      },
+      "stdev": {
+        "expected": 0.0002309776544036845,
+        "tol": 2.309776544036845e-06,
+        "note": ""
+      },
+      "p10": {
+        "expected": -0.0003627626189130511,
+        "tol": 3.627626189130511e-06,
+        "note": ""
+      },
+      "p90": {
+        "expected": 0.000383970319059415,
+        "tol": 3.83970319059415e-06,
+        "note": ""
+      }
+    },
+    "block_values": {
+      "expected": [
+        0.0,
+        0.0,
+        0.8184016368032734,
+        -0.8184016368032733,
+        0.0
+      ],
+      "tol": 1e-06,
+      "note": ""
+    }
+  }
+}
