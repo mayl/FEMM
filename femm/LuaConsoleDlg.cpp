@@ -86,7 +86,7 @@ void CLuaConsoleDlg::ToOutput(CString str)
     while (ConsoleOutput.LineIndex(k) < str.GetLength())
       k += 1;
     ConsoleOutput.SetSel(0, ConsoleOutput.LineIndex(k), TRUE);
-    ConsoleOutput.ReplaceSel("");
+    ConsoleOutput.ReplaceSel(L"");
   }
 
   ConsoleOutput.SetSel(Length, Length, TRUE);

@@ -165,12 +165,12 @@ void CXYPlot::MakePlot(CDC* pDC, char* BoundingBox)
     for (j = 0; j < NumRows; j++)
       pDC->LineTo((int)M[j][0], (int)M[j][i]);
     pDC->SetTextColor(PenCols[i - 1]);
-    pDC->TextOut((int)(OffsetX + Width + 10.), ((int)OffsetY) + 14 * i, lbls[i], (int)strlen(lbls[i]));
+    { CString _t(lbls[i]); pDC->TextOut((int)(OffsetX + Width + 10.), ((int)OffsetY) + 14 * i, _t, _t.GetLength()); }
     pDC->SelectObject(pOldPen);
     PlotPen.DeleteObject();
   }
   pDC->SetTextColor(0x00000000);
-  pDC->TextOut(200, (int)(OffsetY + Height + 30), lbls[0], (int)strlen(lbls[0]));
+  { CString _t(lbls[0]); pDC->TextOut(200, (int)(OffsetY + Height + 30), _t, _t.GetLength()); }
   k = (int)((HiY - LoY) / dy + 0.5);
   if (k < 4) {
     dy /= 2.;
@@ -184,7 +184,7 @@ void CXYPlot::MakePlot(CDC* pDC, char* BoundingBox)
     pDC->MoveTo((int)OffsetX, (i * (int)Height) / k + (int)OffsetY);
     pDC->LineTo((int)OffsetX - 5, (i * (int)Height) / k + (int)OffsetY);
     sprintf(s, "%.4g", HiY - ((double)i) * dy);
-    pDC->TextOut(((int)OffsetX) - 10, (i * (int)Height) / k + (int)OffsetY - 6, s, (int)strlen(s));
+    { CString _t(s); pDC->TextOut(((int)OffsetX) - 10, (i * (int)Height) / k + (int)OffsetY - 6, _t, _t.GetLength()); }
   }
   k = (int)((HiX - LoX) / dx);
   if (k < 4) {
@@ -197,7 +197,7 @@ void CXYPlot::MakePlot(CDC* pDC, char* BoundingBox)
     pDC->MoveTo((int)(((double)i) * d + OffsetX), (int)(OffsetY + Height));
     pDC->LineTo((int)(((double)i) * d + OffsetX), (int)(OffsetY + Height) + 5);
     sprintf(s, "%.4g", LoX + ((double)i) * dx);
-    pDC->TextOut((int)(((double)i) * d + OffsetX), (int)OffsetY + (int)Height + 10, s, (int)strlen(s));
+    { CString _t(s); pDC->TextOut((int)(((double)i) * d + OffsetX), (int)OffsetY + (int)Height + 10, _t, _t.GetLength()); }
   }
   pDC->SetTextAlign(TA_LEFT);
 
@@ -219,10 +219,10 @@ BOOL CXYPlot::ToDisk(int fileformat, CString ToFile)
   if (ToFile == "") {
     CFileDialog* fname_dia = new CFileDialog(
         FALSE,
-        "txt | * ",
+        _T("txt | * "),
         dest_name,
         OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
-        "Text Files (*.txt) | *.txt; *.TXT | All Files (*.*) | *.*||",
+        _T("Text Files (*.txt) | *.txt; *.TXT | All Files (*.*) | *.*||"),
         NULL);
 
     if (fname_dia->DoModal() == IDCANCEL) {

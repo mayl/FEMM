@@ -57,8 +57,8 @@ void CMyCommandLineInfo::ParseParam(LPCTSTR lpszParam, BOOL bFlag, BOOL bLast)
         varname = theparam.Mid(8, pos - 8);
         vardata = theparam.Mid(pos + 1, theparam.GetLength() - pos + 1);
         if (lua != NULL) {
-          lua_pushstring(lua, vardata);
-          lua_setglobal(lua, varname);
+          lua_pushstring(lua, (LPCSTR)CStringA(vardata));
+          lua_setglobal(lua, (LPCSTR)CStringA(varname));
         }
         pos = theparam.GetLength() + 1;
       }

@@ -152,7 +152,7 @@ void CMaterialProp::StripBHData(CString& b, CString& h)
 
   k = b.GetLength() + 10;
   buff = (char*)calloc(k, sizeof(char));
-  strcpy(buff, b);
+  strcpy(buff, (LPCSTR)CStringA(b));
   nptr = buff;
   while (sscanf(nptr, "%lf", &z) != EOF) {
     z = strtod(nptr, &endptr);
@@ -171,7 +171,7 @@ void CMaterialProp::StripBHData(CString& b, CString& h)
 
   k = h.GetLength() + 10;
   buff = (char*)calloc(k, sizeof(char));
-  strcpy(buff, h);
+  strcpy(buff, (LPCSTR)CStringA(h));
   nptr = buff;
   while (sscanf(nptr, "%lf", &z) != EOF) {
     z = strtod(nptr, &endptr);

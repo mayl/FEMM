@@ -28,7 +28,7 @@ void Lua_DDX_Text(CDataExchange* pDX, int nIDC, int& x)
     DDX_Text(pDX, nIDC, tolua);
     tolua = "return " + tolua;
     i = lua_gettop(lua);
-    lua_dostring(lua, tolua);
+    lua_dostring(lua, (LPCSTR)CStringA(tolua));
     k = lua_gettop(lua);
     if (i != k) {
       tolua = lua_tostring(lua, -1);
@@ -60,7 +60,7 @@ void Lua_DDX_Text(CDataExchange* pDX, int nIDC, double& x)
     DDX_Text(pDX, nIDC, tolua);
     tolua = "return " + tolua;
     i = lua_gettop(lua);
-    lua_dostring(lua, tolua);
+    lua_dostring(lua, (LPCSTR)CStringA(tolua));
     k = lua_gettop(lua);
     if (i != k) {
       tolua = lua_tostring(lua, -1);
@@ -82,7 +82,7 @@ void Lua_DDX_Text(CDataExchange* pDX, int nIDC, CComplex& x)
   // there is no native complex form of DDX_Text.
   if (pDX->m_bSaveAndValidate == FALSE) {
     CString tmp;
-    tmp.Format("%s", ToString(x, 16));
+    tmp.Format(L"%s", (LPCTSTR)ToString(x, 16));
     DDX_Text(pDX, nIDC, tmp);
   }
   // otherwise, side-track things by sending the contents
@@ -93,7 +93,7 @@ void Lua_DDX_Text(CDataExchange* pDX, int nIDC, CComplex& x)
     DDX_Text(pDX, nIDC, tolua);
     tolua = "return " + tolua;
     i = lua_gettop(lua);
-    lua_dostring(lua, tolua);
+    lua_dostring(lua, (LPCSTR)CStringA(tolua));
     k = lua_gettop(lua);
     if (i != k) {
       tolua = lua_tostring(lua, -1);
@@ -128,7 +128,7 @@ void Lua_DDX_Text(CDataExchange* pDX, int nIDC, double& x, CString& s)
 
     tolua = "return " + tolua;
     i = lua_gettop(LocalLua);
-    lua_dostring(LocalLua, tolua);
+    lua_dostring(LocalLua, (LPCSTR)CStringA(tolua));
     k = lua_gettop(LocalLua);
     if (i != k) {
       tolua = lua_tostring(LocalLua, -1);

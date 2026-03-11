@@ -237,7 +237,7 @@ int fe_CLibDlg::ParseLine(char* s, FILE* fp, CMaterialProp& MProp)
         }
       }
     FoldProps[FoldProps.GetUpperBound()].FolderName = v;
-    m_mytree.SetItemText(Parent, v);
+    m_mytree.SetItemText(Parent, CString(v));
     q[0] = NULL;
   }
 
@@ -671,9 +671,9 @@ void fe_CLibDlg::AddNewProperty()
   if (m_dragTargetList != NULL) {
     hParent = m_mylist.GetParentItem(m_dragTargetList);
     if (hParent != NULL)
-      hResult = m_mylist.InsertItem("New Material", 2, 2, ModelParent, m_dragTargetList);
+      hResult = m_mylist.InsertItem(_T("New Material"), 2, 2, ModelParent, m_dragTargetList);
     else
-      hResult = m_mylist.InsertItem("New Material", 2, 2, ModelParent, TVI_LAST);
+      hResult = m_mylist.InsertItem(_T("New Material"), 2, 2, ModelParent, TVI_LAST);
 
     CMaterialProp MProp;
     LibProps.Add(MProp);
@@ -686,9 +686,9 @@ void fe_CLibDlg::AddNewProperty()
     else
       hParent = m_mytree.GetParentItem(m_dragTargetTree);
     if (hParent != NULL)
-      hResult = m_mytree.InsertItem("New Material", 2, 2, hParent, m_dragTargetTree);
+      hResult = m_mytree.InsertItem(_T("New Material"), 2, 2, hParent, m_dragTargetTree);
     else
-      hResult = m_mytree.InsertItem("New Material", 2, 2, LibParent, TVI_LAST);
+      hResult = m_mytree.InsertItem(_T("New Material"), 2, 2, LibParent, TVI_LAST);
 
     CMaterialProp MProp;
     LibProps.Add(MProp);
@@ -706,9 +706,9 @@ void fe_CLibDlg::AddNewFolder()
     else
       hParent = m_mytree.GetParentItem(m_dragTargetTree);
     if (hParent != NULL)
-      hResult = m_mytree.InsertItem("New Folder", 0, 1, hParent, m_dragTargetTree);
+      hResult = m_mytree.InsertItem(_T("New Folder"), 0, 1, hParent, m_dragTargetTree);
     else
-      hResult = m_mytree.InsertItem("New Folder", 0, 1, LibParent, TVI_LAST);
+      hResult = m_mytree.InsertItem(_T("New Folder"), 0, 1, LibParent, TVI_LAST);
 
     CFolderProp FProp;
     FProp.FolderName = "New Folder";
@@ -1070,7 +1070,7 @@ void fe_CLibDlg::CopyItemToDisk(HTREEITEM hItem, FILE* fp)
 void fe_CLibDlg::VendorLink()
 {
   if (VendorURL != "")
-    ShellExecute(m_hWnd, "open", VendorURL, "", "", SW_SHOWMAXIMIZED);
+    ShellExecuteW(m_hWnd, L"open", VendorURL, L"", L"", SW_SHOWMAXIMIZED);
   else
     MsgBox("No URL available for %s", VendorName);
 }
@@ -1082,10 +1082,10 @@ void fe_CLibDlg::ImportMaterials()
 
   fname_dia = new CFileDialog(
       TRUE,
-      "fem | * ",
+      _T("fem | * "),
       NULL,
       OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
-      "Magnetostatic Input File (*.fem) | *.fem; *.FEM | All Files (*.*) | *.*||",
+      _T("Magnetostatic Input File (*.fem) | *.fem; *.FEM | All Files (*.*) | *.*||"),
       NULL);
 
   if (fname_dia->DoModal() == IDCANCEL) {
@@ -1111,7 +1111,7 @@ void fe_CLibDlg::ImportMaterials()
   if (m_dragTargetTree != NULL) {
     // importing into the library
     // put the imported materials in a new folder
-    Parent = m_mytree.InsertItem("Imported Materials", 0, 1, LibParent, TVI_FIRST);
+    Parent = m_mytree.InsertItem(_T("Imported Materials"), 0, 1, LibParent, TVI_FIRST);
     FProp.FolderName = "Imported Materials";
     FProp.FolderURL = "";
     FProp.FolderVendor = "";

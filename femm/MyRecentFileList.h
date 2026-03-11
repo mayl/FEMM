@@ -1,7 +1,7 @@
 #ifndef _MYRECENTFILELIST_H_
 #define _MYRECENTFILELIST_H_
 
-#include < afxadv.h> // for CRecentFileList
+#include <afxadv.h> // for CRecentFileList
 
 class MyCRecentFileList : public CRecentFileList {
   public:

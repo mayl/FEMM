@@ -509,8 +509,8 @@ int CFemmApp::ExitInstance()
 
 void CFemmApp::OnFileOpenLuaScript()
 {
-  static char BASED_CODE szFilter[] = "Lua Script Files (*.lua)|*.lua|";
-  char ext[] = ".lua";
+  static TCHAR BASED_CODE szFilter[] = _T("Lua Script Files (*.lua)|*.lua|");
+  TCHAR ext[] = _T(".lua");
   CFileDialog MyDlg(TRUE, ext, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, szFilter);
   if (MyDlg.DoModal() == IDOK) {
     luascriptname = MyDlg.GetPathName();
@@ -732,7 +732,7 @@ int CFemmApp::lua_promptbox(lua_State* L)
   if (lua_gettop(L) > 0)
     dlg.mytitle = lua_tostring(L, 1);
   dlg.DoModal();
-  lua_pushstring(L, dlg.instring);
+  lua_pushstring(L, (LPCSTR)CStringA(dlg.instring));
 
   return TRUE;
 }
@@ -766,12 +766,12 @@ int CFemmApp::lua_ERROR(lua_State* L)
   // Windows doesn't have stdout so lets afxmessagebox it
   if (theApp.bFileLink) {
     FILE* fp;
-    fp = fopen(theApp.OFile, "wt");
+    fp = _wfopen(theApp.OFile, L"wt");
     if (fp != NULL) {
-      errmsg.Replace("error:", "");
-      errmsg.Replace("\"", "\\\"");
-      errmsg.Replace("\n", "\\n");
-      fprintf(fp, "error(\"FEMM returns:\\n%s\\n\")", (const char*)errmsg);
+      errmsg.Replace(L"error:", L"");
+      errmsg.Replace(L"\"", L"\\\"");
+      errmsg.Replace(L"\n", L"\\n");
+      fprintf(fp, "error(\"FEMM returns:\\n%s\\n\")", (LPCSTR)CStringA(errmsg));
       fclose(fp);
     }
   } else if (!theApp.bActiveX)
@@ -793,12 +793,12 @@ void CFemmApp::CreateNewDocument(int n)
   // is an XY plot and we want to open it in another window
   // all together
   if ((n == 7) && (d_sepplot)) {
-    char CommandLine[MAX_PATH];
-    sprintf(CommandLine, "%sfemmplot.exe", (const char*)((CFemmApp*)AfxGetApp())->GetExecutablePath());
+    wchar_t CommandLine[MAX_PATH];
+    swprintf(CommandLine, MAX_PATH, L"%sfemmplot.exe", (LPCWSTR)((CFemmApp*)AfxGetApp())->GetExecutablePath());
     STARTUPINFO StartupInfo2 = { 0 };
     PROCESS_INFORMATION ProcessInfo2;
     StartupInfo2.cb = sizeof(STARTUPINFO);
-    CreateProcess(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);
+    CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);
     CloseHandle(ProcessInfo2.hProcess);
     CloseHandle(ProcessInfo2.hThread);
     return;
@@ -828,12 +828,12 @@ BOOL CFemmApp::OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* p
 
 CString CFemmApp::GetExecutablePath()
 {
-  char szPath[MAX_PATH];
-  char szDrive[64];
-  char szDir[MAX_PATH];
+  wchar_t szPath[MAX_PATH];
+  wchar_t szDrive[64];
+  wchar_t szDir[MAX_PATH];
 
-  GetModuleFileName(NULL, szPath, MAX_PATH);
-  _splitpath(szPath, szDrive, szDir, NULL, NULL);
+  GetModuleFileNameW(NULL, szPath, MAX_PATH);
+  _wsplitpath(szPath, szDrive, szDir, NULL, NULL);
 
   return ((CString)szDrive) + szDir;
 }
@@ -1292,7 +1292,7 @@ int CFemmApp::lua_to_filelink(lua_State* L)
   int n = lua_gettop(L);
 
   do {
-    fp = fopen(((CFemmApp*)AfxGetApp())->OFile, "wt");
+    fp = _wfopen(((CFemmApp*)AfxGetApp())->OFile, L"wt");
   } while (fp == NULL);
 
   if (n == 0)
@@ -1307,7 +1307,7 @@ int CFemmApp::lua_to_filelink(lua_State* L)
         LuaResult = LuaResult + s + "]\n";
     }
   }
-  fprintf(fp, "%s", (const char*)LuaResult);
+  fprintf(fp, "%s", (LPCSTR)CStringA(LuaResult));
   fclose(fp);
 
   return 0;

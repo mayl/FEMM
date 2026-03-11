@@ -1838,8 +1838,9 @@ void ChviewDoc::BendContour(double angle, double anglestep)
     c = a0 + (R / d) * (a1 - a0) * exp(-I * (PI + tta) / 2.);
 
   // add the points on the contour
-  for (k = 1; k <= n; k++)
-    contour.Add(c + (a0 - c) * exp(k * I * dtta));
+  for (k = 1; k <= n; k++) {
+    CComplex _tmp = c + (a0 - c) * exp(k * I * dtta); contour.Add(_tmp);
+  }
 }
 
 CComplex ChviewDoc::E(int k)

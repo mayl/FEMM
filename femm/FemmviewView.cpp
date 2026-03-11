@@ -1426,7 +1426,7 @@ void CFemmviewView::OnDraw(CDC* pDC)
       if (pDoc->blocklist[i].InCircuit >= 0) {
         k = pDoc->blocklist[i].InCircuit;
         if (pDoc->circproplist[k].CircType == 1)
-          lbl.Format("[%s:%i]", pDoc->circproplist[k].CircName,
+          lbl.Format(L"[%s:%i]", (LPCTSTR)pDoc->circproplist[k].CircName,
               pDoc->blocklist[i].Turns);
         else
           lbl = "[" + pDoc->circproplist[k].CircName + "]";
@@ -3533,21 +3533,21 @@ void CFemmviewView::OnMenuIntegrate()
     switch (dlg.myIntType) {
     case 0: // Torque
       if (pDoc->Frequency == 0) {
-        lua_pushstring(lua, dlg.BdryName);
+        lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
         lua_pushnumber(lua, 0);
         pDoc->lua_gapintegral(lua);
         s.Format("Torque = %g Nm", lua_todouble(lua, -1));
         n = lua_gettop(lua);
         lua_pop(lua, n);
       } else {
-        lua_pushstring(lua, dlg.BdryName);
+        lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
         lua_pushnumber(lua, 0); // DC part of torque
         pDoc->lua_gapintegral(lua);
         y1 = lua_todouble(lua, -1);
         n = lua_gettop(lua);
         lua_pop(lua, n);
 
-        lua_pushstring(lua, dlg.BdryName);
+        lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
         lua_pushnumber(lua, 3); // 2X part of torque
         pDoc->lua_gapintegral(lua);
         z1 = lua_tonumber(lua, -1);
@@ -3561,7 +3561,7 @@ void CFemmviewView::OnMenuIntegrate()
 
     case 1: // Force
       if (pDoc->Frequency == 0) {
-        lua_pushstring(lua, dlg.BdryName);
+        lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
         lua_pushnumber(lua, 1);
         pDoc->lua_gapintegral(lua);
         y1 = lua_todouble(lua, -2);
@@ -3570,7 +3570,7 @@ void CFemmviewView::OnMenuIntegrate()
         lua_pop(lua, n);
         s.Format("Fx = %g N\nFy = %g N", y1, y2);
       } else {
-        lua_pushstring(lua, dlg.BdryName);
+        lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
         lua_pushnumber(lua, 1); // DC part of torque
         pDoc->lua_gapintegral(lua);
         y1 = lua_todouble(lua, -2);
@@ -3578,7 +3578,7 @@ void CFemmviewView::OnMenuIntegrate()
         n = lua_gettop(lua);
         lua_pop(lua, n);
 
-        lua_pushstring(lua, dlg.BdryName);
+        lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
         lua_pushnumber(lua, 4); // 2X part of torque
         pDoc->lua_gapintegral(lua);
         z1 = lua_tonumber(lua, -2);
@@ -3592,7 +3592,7 @@ void CFemmviewView::OnMenuIntegrate()
       break;
 
     case 2: // Energy
-      lua_pushstring(lua, dlg.BdryName);
+      lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
       lua_pushnumber(lua, 2);
       pDoc->lua_gapintegral(lua);
       y1 = lua_todouble(lua, -1);
@@ -3607,7 +3607,7 @@ void CFemmviewView::OnMenuIntegrate()
       break;
 
     case 3: // Interaction Torque
-      lua_pushstring(lua, dlg.BdryName);
+      lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
       lua_pushnumber(lua, 5);
       pDoc->lua_gapintegral(lua);
       z1 = lua_tonumber(lua, -1);
@@ -3619,7 +3619,7 @@ void CFemmviewView::OnMenuIntegrate()
       break;
 
     case 4: // Interaction Force
-      lua_pushstring(lua, dlg.BdryName);
+      lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName));
       lua_pushnumber(lua, 6);
       pDoc->lua_gapintegral(lua);
       z2 = lua_tonumber(lua, -2);
@@ -3681,7 +3681,7 @@ void CFemmviewView::OnRButtonDblClk(UINT nFlags, CPoint point)
       char s[256];
       sprintf(s, "Closest input node:\n(%g,%g)", pDoc->nodelist[i].x,
           pDoc->nodelist[i].y);
-      AfxMessageBox(s, MB_ICONINFORMATION);
+      AfxMessageBox(CString(s), MB_ICONINFORMATION);
     }
   }
 

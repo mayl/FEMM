@@ -2675,7 +2675,7 @@ void ChviewView::OnRButtonDblClk(UINT nFlags, CPoint point)
       char s[256];
       sprintf(s, "Closest input node:\n(%g,%g)", pDoc->nodelist[i].x,
           pDoc->nodelist[i].y);
-      AfxMessageBox(s, MB_ICONINFORMATION);
+      AfxMessageBox(CString(s), MB_ICONINFORMATION);
     }
   }
 

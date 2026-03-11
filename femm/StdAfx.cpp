@@ -25,7 +25,7 @@ int MsgBox(PSTR sz, ...)
   CString ach;
   va_list args;
   va_start(args, sz);
-  ach.FormatV(sz, args);
+  { CStringA narrow; narrow.FormatV(sz, args); ach = CString(narrow); }
   if (theApp.bActiveX) {
     theApp.MatlabLoveNote = ach;
     return IDOK;

@@ -2704,8 +2704,8 @@ int ChdrawDoc::lua_getmaterial(lua_State* L)
   fclose(fp);
 
   CString msg;
-  msg.Format("Couldn't load \"%s\" from the materials library", matname);
-  lua_error(L, msg.GetBuffer(1));
+  msg.Format(L"Couldn't load \"%s\" from the materials library", (LPCTSTR)matname);
+  lua_error(L, (LPCSTR)CStringA(msg));
   return FALSE;
 }
 

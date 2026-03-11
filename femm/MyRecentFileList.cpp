@@ -25,7 +25,7 @@ AFX_STATIC void AFXAPI _AfxAbbreviateName(LPTSTR lpszCanon, int cchMax, BOOL bAt
 
   // If cchMax isn't enough to hold at least the basename, we're done
   if (cchMax < cchFileName) {
-    lstrcpy(lpszCanon, (bAtLeastName) ? lpszFileName : "");
+    lstrcpy(lpszCanon, (bAtLeastName) ? lpszFileName : L"");
     return;
   }
 

@@ -4,7 +4,7 @@ Projekt: MDITabs, a tabcontrol for switching between MDI-views
 Inhalt : CMDITabs implementation
 Datum  : 03.10.2001
 Autor  : Christian Rodemeyer
-Hinweis: © 2001 by Christian Rodemeyer
+Hinweis: ï¿½ 2001 by Christian Rodemeyer
 \****************************************************************************/
 
 /****************************************************************************\
@@ -140,7 +140,7 @@ LICENSE, YOU CANNOT MAKE ANY USE OF THE WORK.
   DISTRIBUTE THE WORK OR DERIVATIVE WORKS.
 7.	Indemnity. You agree to defend, indemnify and hold harmless the Author and the
   Publisher from and against any claims, suits, losses, damages, liabilities,
-  costs, and expenses (including reasonable legal or attorneys’ fees) resulting
+  costs, and expenses (including reasonable legal or attorneysï¿½ fees) resulting
   from or relating to any use of the Work by You.
 8.	Limitation on Liability. EXCEPT TO THE EXTENT REQUIRED BY APPLICABLE LAW,
   IN NO EVENT WILL THE AUTHOR OR THE PUBLISHER BE LIABLE TO YOU ON ANY LEGAL
@@ -196,7 +196,7 @@ LICENSE, YOU CANNOT MAKE ANY USE OF THE WORK.
 
 #include "stdafx.h"
 #include "MDITabs.h"
-#include <AFXPRIV.H>
+#include <afxpriv.h>
 #include <algorithm>
 #include <vector>
 
@@ -280,7 +280,7 @@ void CMDITabs::Update()
   }
 
   TCITEM item;
-  char text[256];
+  wchar_t text[256];
   item.pszText = text;
 
   int i;
@@ -316,7 +316,7 @@ void CMDITabs::Update()
     // a bug in wine makes us want to add some extra, spurious tabs.
     // Since there's no text on these extra tabs, we can use this as
     // a discriminator to root them out.
-    if (strlen(text) > 1) {
+    if (wcslen(text) > 1) {
       if (m_bImages)
         m_images.Add((HICON)::GetClassLongPtr(*it, GCLP_HICON));
       item.iImage = i;
@@ -454,9 +454,9 @@ void CMDITabs::Create(CFrameWnd* pMainFrame, DWORD dwStyle)
 
   HWND wnd;
   for (wnd = ::GetTopWindow(*pMainFrame); wnd; wnd = ::GetNextWindow(wnd, GW_HWNDNEXT)) {
-    char wndClass[32];
+    wchar_t wndClass[32];
     ::GetClassName(wnd, wndClass, 32);
-    if (strncmp(wndClass, "MDIClient", 32) == 0)
+    if (wcsncmp(wndClass, L"MDIClient", 32) == 0)
       break;
   }
   m_mdiClient = wnd;

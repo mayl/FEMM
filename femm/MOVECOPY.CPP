@@ -1457,8 +1457,9 @@ BOOL CFemmeDoc::AddSegment(CComplex p0, CComplex p1, CSegment& segm, double tol)
 
   // check to see if there are intersections with segments
   for (i = 0; i < linelist.GetSize(); i++)
-    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE)
-      newnodes.Add(CComplex(xi, yi));
+    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE) {
+      CComplex _tmp(xi, yi); newnodes.Add(_tmp);
+    }
 
   // check to see if there are intersections with arcs
   for (i = 0; i < arclist.GetSize(); i++) {
