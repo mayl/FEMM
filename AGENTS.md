@@ -1,0 +1,69 @@
+# Agent Instructions
+
+This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+
+## Quick Reference
+
+```bash
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --status in_progress  # Claim work
+bd close <id>         # Complete work
+bd sync               # Sync with git
+```
+
+## Incremental Build Workflow
+
+Use this for quick compile/test cycles without a full `nix build`.
+
+**One-time setup** (once per machine, after cloning):
+```bash
+nix develop .#build       # enter build shell (sets FEMM_TOOLCHAIN_FILE etc.)
+just build-init           # rsync source → build/src/, apply patches, cmake configure
+```
+
+**Inner loop** (repeat while editing):
+```bash
+# Edit source files in the main tree (e.g. femm/foo.cpp)
+nix develop .#build --command just sync-build   # rsync + re-patch + ninja
+# or, if already inside nix develop .#build:
+just sync-build
+```
+
+**Single target** (faster when only one component changed):
+```bash
+nix develop .#build --command just build-target fkn
+```
+
+**Key facts:**
+- Source edits go in the **main tree** (`femm/`, `fkn/`, etc.). Never edit `build/src/` directly.
+- `just sync-build` rsyncs your edits to `build/src/`, re-applies `scripts/patch-sources.py` (needed because rsync `--delete` removes patch-created symlinks/files), then runs ninja.
+- Cross-compiles to Windows (clang-cl targeting x86_64-pc-windows-msvc). `WIN32` is always true in this build.
+- To verify a clean Linux configure (no MFC): `nix shell nixpkgs#cmake --command cmake <repo> -B /tmp/test`
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
+

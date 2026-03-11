@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(ResizableLib C CXX)
 
+if(WIN32)
+
 find_package(MFC REQUIRED)
 set(CMAKE_MFC_FLAG 2)
 add_definitions(-D_WIN32_WINNT=0x0501)
@@ -39,3 +41,5 @@ set(ResizableLib_SOURCES
 
 add_library(ResizableLib ${ResizableLib_SOURCES})
 target_include_directories(ResizableLib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+endif() # WIN32

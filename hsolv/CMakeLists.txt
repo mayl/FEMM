@@ -3,6 +3,8 @@ project(hsolv C CXX)
 
 set(INSTALL_BIN_DIR  "${CMAKE_SOURCE_DIR}" CACHE PATH "Path where exe will be installed")
 
+if(WIN32)
+
 find_package(MFC REQUIRED)
 set(CMAKE_MFC_FLAG 2)
 add_definitions(-D_WIN32_WINNT=0x0501)
@@ -31,3 +33,5 @@ set(hsolv_SOURCES
 add_executable(hsolv WIN32 ${hsolv_SOURCES})
 target_include_directories(hsolv PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 install(TARGETS hsolv DESTINATION "${INSTALL_BIN_DIR}")
+
+endif() # WIN32
