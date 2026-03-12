@@ -32,12 +32,12 @@ IMPLEMENT_DYNCREATE(CbeladrawDoc, CDocument)
 
 BEGIN_MESSAGE_MAP(CbeladrawDoc, CDocument)
 //{{AFX_MSG_MAP(CbeladrawDoc)
-ON_COMMAND(ID_DEFINE_PROBLEM, OnDefineProblem)
-ON_COMMAND(ID_EDIT_MATPROPS, OnEditMatprops)
-ON_COMMAND(ID_EDIT_PTPROPS, OnEditPtprops)
-ON_COMMAND(ID_EDIT_SEGPROPS, OnEditSegprops)
-ON_COMMAND(ID_EDIT_CIRCPROPS, OnEditCircprops)
-ON_COMMAND(ID_EDIT_EXTERIOR, OnEditExterior)
+ON_COMMAND(ID_DEFINE_PROBLEM, CbeladrawDoc::OnDefineProblem)
+ON_COMMAND(ID_EDIT_MATPROPS, CbeladrawDoc::OnEditMatprops)
+ON_COMMAND(ID_EDIT_PTPROPS, CbeladrawDoc::OnEditPtprops)
+ON_COMMAND(ID_EDIT_SEGPROPS, CbeladrawDoc::OnEditSegprops)
+ON_COMMAND(ID_EDIT_CIRCPROPS, CbeladrawDoc::OnEditCircprops)
+ON_COMMAND(ID_EDIT_EXTERIOR, CbeladrawDoc::OnEditExterior)
 //}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -288,8 +288,9 @@ BOOL CbeladrawDoc::AddSegment(int n0, int n1, CSegment* parsegm, double tol)
 
   // check to see if there are intersections with segments
   for (i = 0; i < linelist.GetSize(); i++)
-    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE)
-      newnodes.Add(CComplex(xi, yi));
+    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE) {
+      CComplex _tmp(xi, yi); newnodes.Add(_tmp);
+    }
 
   // check to see if there are intersections with arcs
   for (i = 0; i < arclist.GetSize(); i++) {
@@ -1361,7 +1362,7 @@ BOOL CbeladrawDoc::OnOpenDocument(LPCTSTR lpszPathName)
   CArcSegment asegm;
   CBlockLabel blk;
 
-  if ((fp = fopen(lpszPathName, "rt")) == NULL) {
+  if ((fp = _wfopen(lpszPathName, L"rt")) == NULL) {
     MsgBox("Couldn't read from specified .fee file");
     return FALSE;
   }
@@ -1914,10 +1915,10 @@ BOOL CbeladrawDoc::OnSaveDocument(LPCTSTR lpszPathName)
   CString s;
 
   // check to see if we are ready to write a datafile;
-  if ((fp = fopen(lpszPathName, "wt")) == NULL) {
+  if ((fp = _wfopen(lpszPathName, L"wt")) == NULL) {
     for (k = 0; k < 10; k++) {
       Sleep(10 + k * 20);
-      if ((fp = fopen(lpszPathName, "wt")) != NULL)
+      if ((fp = _wfopen(lpszPathName, L"wt")) != NULL)
         break;
     }
     if (k == 10) {
@@ -1976,13 +1977,13 @@ BOOL CbeladrawDoc::OnSaveDocument(LPCTSTR lpszPathName)
     if (s[i] == 10)
       s.SetAt(i, 'n');
   }
-  fprintf(fp, "[Comment]     =  \"%s\"\n", (const char*)s);
+  fprintf(fp, "[Comment]     =  \"%s\"\n", (LPCSTR)CStringA(s));
 
   // write out materials properties stuff...
   fprintf(fp, "[PointProps]   = %i\n", nodeproplist.GetSize());
   for (i = 0; i < nodeproplist.GetSize(); i++) {
     fprintf(fp, "  <BeginPoint>\n");
-    fprintf(fp, "    <PointName> = \"%s\"\n", (const char*)nodeproplist[i].PointName);
+    fprintf(fp, "    <PointName> = \"%s\"\n", (LPCSTR)CStringA(nodeproplist[i].PointName));
     fprintf(fp, "    <Vp> = %.17g\n", nodeproplist[i].V);
     fprintf(fp, "    <qp> = %.17g\n", nodeproplist[i].qp);
     fprintf(fp, "  <EndPoint>\n");
@@ -1991,7 +1992,7 @@ BOOL CbeladrawDoc::OnSaveDocument(LPCTSTR lpszPathName)
   fprintf(fp, "[BdryProps]   = %i\n", lineproplist.GetSize());
   for (i = 0; i < lineproplist.GetSize(); i++) {
     fprintf(fp, "  <BeginBdry>\n");
-    fprintf(fp, "    <BdryName> = \"%s\"\n", (const char*)lineproplist[i].BdryName);
+    fprintf(fp, "    <BdryName> = \"%s\"\n", (LPCSTR)CStringA(lineproplist[i].BdryName));
     fprintf(fp, "    <BdryType> = %i\n", lineproplist[i].BdryFormat);
     fprintf(fp, "    <Vs> = %.17g\n", lineproplist[i].V);
     fprintf(fp, "    <qs> = %.17g\n", lineproplist[i].qs);
@@ -2003,7 +2004,7 @@ BOOL CbeladrawDoc::OnSaveDocument(LPCTSTR lpszPathName)
   fprintf(fp, "[BlockProps]  = %i\n", blockproplist.GetSize());
   for (i = 0; i < blockproplist.GetSize(); i++) {
     fprintf(fp, "  <BeginBlock>\n");
-    fprintf(fp, "    <BlockName> = \"%s\"\n", (const char*)blockproplist[i].BlockName);
+    fprintf(fp, "    <BlockName> = \"%s\"\n", (LPCSTR)CStringA(blockproplist[i].BlockName));
     fprintf(fp, "    <ex> = %.17g\n", blockproplist[i].ex);
     fprintf(fp, "    <ey> = %.17g\n", blockproplist[i].ey);
     fprintf(fp, "    <qv> = %.17g\n", blockproplist[i].qv);
@@ -2013,7 +2014,7 @@ BOOL CbeladrawDoc::OnSaveDocument(LPCTSTR lpszPathName)
   fprintf(fp, "[ConductorProps]  = %i\n", circproplist.GetSize());
   for (i = 0; i < circproplist.GetSize(); i++) {
     fprintf(fp, "  <BeginConductor>\n");
-    fprintf(fp, "    <ConductorName> = \"%s\"\n", (const char*)circproplist[i].CircName);
+    fprintf(fp, "    <ConductorName> = \"%s\"\n", (LPCSTR)CStringA(circproplist[i].CircName));
     fprintf(fp, "    <Vc> = %.17g\n", circproplist[i].V);
     fprintf(fp, "    <qc> = %.17g\n", circproplist[i].q);
     fprintf(fp, "    <ConductorType> = %i\n", circproplist[i].CircType);
@@ -2127,7 +2128,7 @@ BOOL CbeladrawDoc::LoadMesh()
 
   // read meshnodes;
   infile = rootname + ".node";
-  if ((fp = fopen(infile, "rt")) == NULL) {
+  if ((fp = _wfopen(infile, L"rt")) == NULL) {
     MsgBox("No mesh to display");
     return FALSE;
   }
@@ -2144,7 +2145,7 @@ BOOL CbeladrawDoc::LoadMesh()
 
   // read meshlines;
   infile = rootname + ".edge";
-  if ((fp = fopen(infile, "rt")) == NULL) {
+  if ((fp = _wfopen(infile, L"rt")) == NULL) {
     MsgBox("No mesh to display");
     return FALSE;
   }
@@ -2154,7 +2155,7 @@ BOOL CbeladrawDoc::LoadMesh()
   fclose(fp);
 
   infile = rootname + ".ele";
-  if ((fp = fopen(infile, "rt")) == NULL) {
+  if ((fp = _wfopen(infile, L"rt")) == NULL) {
     MsgBox("No mesh to display");
     return FALSE;
   }
@@ -2185,15 +2186,15 @@ BOOL CbeladrawDoc::LoadMesh()
 
   // clear out temporary files
   infile = rootname + ".ele";
-  DeleteFile(infile);
+  DeleteFileW(infile);
   infile = rootname + ".node";
-  DeleteFile(infile);
+  DeleteFileW(infile);
   infile = rootname + ".edge";
-  DeleteFile(infile);
+  DeleteFileW(infile);
   infile = rootname + ".pbc";
-  DeleteFile(infile);
+  DeleteFileW(infile);
   infile = rootname + ".poly";
-  DeleteFile(infile);
+  DeleteFileW(infile);
 
   return TRUE;
 }
@@ -2277,7 +2278,7 @@ BOOL CbeladrawDoc::ScanPreferences()
 
   fname = BinDir + "beladraw.cfg";
 
-  fp = fopen(fname, "rt");
+  fp = _wfopen(fname, L"rt");
   if (fp != NULL) {
     BOOL flag = FALSE;
     char s[1024];

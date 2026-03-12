@@ -27,10 +27,62 @@ for src in pathlib.Path(".").rglob("*"):
 #       support (rejects \0 null strings, non-ASCII in codepage, L suffixes).
 #       VERSIONINFO is purely cosmetic Windows file-properties metadata.
 #    c) Convert Latin-1 encoded files to UTF-8 (llvm-rc rejects 8-bit non-ASCII)
+#    d) Convert TOOLBAR resources to raw binary (type 241 = RT_TOOLBAR):
+#       llvm-rc doesn't support "NAME TOOLBAR width, height BEGIN...END" syntax.
+#       The binary TOOLBAR format is: WORD version=1, width, height, count,
+#       then one WORD per item (button ID or 0 for SEPARATOR).
+#       This is exactly what MFC's LoadToolBar() reads at runtime.
 double_bs = re.compile(r"\\\\")
 begin_re = re.compile(r"\bBEGIN\b")
 end_re = re.compile(r"\bEND\b")
 vi_start_re = re.compile(r"\bVS_VERSION_INFO\b")
+toolbar_hdr_re = re.compile(
+    r'^(\w+)\s+TOOLBAR\s+(\d+)\s*,\s*(\d+)\s*$', re.MULTILINE)
+
+def _convert_toolbar_block(lines, start):
+    """Parse TOOLBAR BEGIN...END starting at lines[start] (the TOOLBAR header).
+    Returns (replacement_lines, next_index) or None if not parseable."""
+    m = toolbar_hdr_re.match(lines[start].rstrip('\r\n'))
+    if not m:
+        return None
+    name, width, height = m.group(1), int(m.group(2)), int(m.group(3))
+    # Find BEGIN
+    i = start + 1
+    while i < len(lines) and not begin_re.search(lines[i]):
+        i += 1
+    if i >= len(lines):
+        return None
+    i += 1  # skip BEGIN line
+    # Collect items until END
+    items = []
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if end_re.match(stripped):
+            end_idx = i
+            break
+        if stripped.startswith('BUTTON'):
+            btn_id = stripped.split()[1]
+            items.append(btn_id)
+        elif stripped.startswith('SEPARATOR'):
+            items.append('0')
+        i += 1
+    else:
+        return None
+    # Build replacement: raw binary resource type 241 (RT_TOOLBAR)
+    # Data: version=1, width, height, count, then item WORDs
+    count = len(items)
+    data_words = [1, width, height, count] + [
+        int(x) if x.isdigit() else x for x in items
+    ]
+    data_str = ', '.join(str(w) for w in data_words)
+    replacement = [
+        f'{name} 241  /* RT_TOOLBAR: converted from TOOLBAR {width}, {height} */\n',
+        'BEGIN\n',
+        f'    {data_str}\n',
+        'END\n',
+    ]
+    return replacement, end_idx + 1
+
 all_rc = (list(pathlib.Path(".").rglob("*.rc")) +
           list(pathlib.Path(".").rglob("*.RC")))
 for rc in all_rc:
@@ -66,7 +118,20 @@ for rc in all_rc:
         else:
             out.append(lines[i])
             i += 1
-    new_text = "".join(out)
+    # d) Convert TOOLBAR resources to raw binary (RT_TOOLBAR = 241).
+    lines2 = out
+    out2, i = [], 0
+    while i < len(lines2):
+        if toolbar_hdr_re.match(lines2[i].rstrip('\r\n')):
+            result = _convert_toolbar_block(lines2, i)
+            if result:
+                replacement, next_i = result
+                out2.extend(replacement)
+                i = next_i
+                continue
+        out2.append(lines2[i])
+        i += 1
+    new_text = "".join(out2)
     if new_text != text or has_nonascii:
         rc.write_text(new_text, encoding="utf-8")
 

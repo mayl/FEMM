@@ -67,7 +67,7 @@ void CBdryDlg::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CBdryDlg, CDialog)
 //{{AFX_MSG_MAP(CBdryDlg)
-ON_CBN_SELCHANGE(IDC_BDRYFORMAT, OnSelchangeBdryformat)
+ON_CBN_SELCHANGE(IDC_BDRYFORMAT, CBdryDlg::OnSelchangeBdryformat)
 //}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -79,7 +79,7 @@ void CBdryDlg::OnOK()
   UpdateData();
   for (int nn = 0; nn < namelist.GetSize(); nn++) {
     if (m_BdryName == namelist[nn]) {
-      MsgBox("The name \"%s\" has already been used.\nSelect a different name for this property.", m_BdryName);
+      MsgBox("The name \"%s\" has already been used.\nSelect a different name for this property.", (LPCSTR)CStringA(m_BdryName));
       return;
     }
   }
@@ -96,7 +96,7 @@ BOOL CBdryDlg::OnInitDialog()
   m_BdryFormat.SetCurSel(BdryFormat);
   OnSelchangeBdryformat();
 
-  symbfont.CreateFont(0, 0, 0, 0, FW_BOLD, TRUE, 0, 0, SYMBOL_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, PROOF_QUALITY, DEFAULT_PITCH | FF_DECORATIVE, "Symbol");
+  symbfont.CreateFont(0, 0, 0, 0, FW_BOLD, TRUE, 0, 0, SYMBOL_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, PROOF_QUALITY, DEFAULT_PITCH | FF_DECORATIVE, _T("Symbol"));
   m_static1.SetFont(&symbfont);
   m_static2.SetFont(&symbfont);
   m_static3.SetFont(&symbfont);

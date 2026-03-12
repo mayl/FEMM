@@ -32,6 +32,9 @@ X64_PATTERN = re.compile(
 ATL_HEADERS_PATTERN = re.compile(
     r"^Microsoft\.VC\.(\d+\.\d+\.\d+\.\d+)\.ATL\.Headers\.base$"
 )
+ATL_X64_PATTERN = re.compile(
+    r"^Microsoft\.VC\.(\d+\.\d+\.\d+\.\d+)\.ATL\.X64\.base$"
+)
 
 
 def fetch_json(url):
@@ -70,11 +73,13 @@ def find_mfc_packages(catalog):
         "MFC.Headers": (None, None),
         "MFC.X64":     (None, None),
         "ATL.Headers": (None, None),
+        "ATL.X64":     (None, None),
     }
     patterns = {
         "MFC.Headers": HEADERS_PATTERN,
         "MFC.X64":     X64_PATTERN,
         "ATL.Headers": ATL_HEADERS_PATTERN,
+        "ATL.X64":     ATL_X64_PATTERN,
     }
 
     for pkg in catalog.get("packages", []):
@@ -142,6 +147,56 @@ def extract_vsix(vsix_path, outdir):
     print(f"[get-mfc-sdk] Extracted {count} files from {vsix_path.name}", file=sys.stderr)
 
 
+def _fix_rc_paths(include_dir):
+    """Fix backslash resource paths in MFC SDK .rc files for llvm-rc on Linux.
+
+    Files like afxres.rc use "res\\\\help.cur" (two backslashes = Windows path
+    separator).  llvm-rc on Linux does not treat '\\' as a path separator, so
+    the file cannot be found.  Replace every \\\\ (double backslash) with /
+    in all .rc files under include_dir.
+    """
+    include_dir = pathlib.Path(include_dir)
+    if not include_dir.exists():
+        return
+    double_bs = re.compile(r"\\\\")
+    count = 0
+    for rc in include_dir.rglob("*.rc"):
+        text = rc.read_text(encoding="utf-8", errors="replace")
+        new_text = double_bs.sub("/", text)
+        if new_text != text:
+            rc.write_text(new_text, encoding="utf-8")
+            count += 1
+    if count:
+        print(f"[get-mfc-sdk] Fixed backslash paths in {count} RC file(s)", file=sys.stderr)
+
+
+def _patch_afxmsg(include_dir):
+    """Patch afxmsg_.h so message-map macros work with clang-cl.
+
+    MSVC accepts non-static member function names without & in casts
+    (e.g. static_cast<AFX_PMSG>(memberFxn)), but clang-cl requires the
+    explicit address-of operator.  Replace cast arguments (memberFxn) with
+    (&memberFxn), but skip #define lines to avoid corrupting macro parameter
+    lists (e.g. #define ON_COMMAND(id, memberFxn) must not be changed).
+    """
+    afxmsg = pathlib.Path(include_dir) / "afxmsg_.h"
+    if not afxmsg.exists():
+        print("[get-mfc-sdk] WARNING: afxmsg_.h not found; skipping patch", file=sys.stderr)
+        return
+    define_re = re.compile(r"^\s*#\s*define\b")
+    lines = afxmsg.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    count = 0
+    patched = []
+    for line in lines:
+        if not define_re.match(line):
+            new_line = re.sub(r"\(memberFxn\)", "(&memberFxn)", line)
+            count += line.count("(memberFxn)") - new_line.count("(memberFxn)")
+            line = new_line
+        patched.append(line)
+    afxmsg.write_text("".join(patched), encoding="utf-8")
+    print(f"[get-mfc-sdk] Patched afxmsg_.h: {count} memberFxn → &memberFxn", file=sys.stderr)
+
+
 def _convert_utf16_rc(include_dir):
     """Convert UTF-16 encoded .rc files to UTF-8 for llvm-rc compatibility."""
     include_dir = pathlib.Path(include_dir)
@@ -168,6 +223,54 @@ def add_lowercase_symlinks(directory):
             lower = entry.name.lower()
             if lower != entry.name and not (directory / lower).exists():
                 (directory / lower).symlink_to(entry.name)
+
+
+def create_sdk_forwarding_headers(atlmfc_include_dir):
+    """Create forwarding headers for mixed-case Windows SDK #includes.
+
+    ATL/MFC headers use Windows-convention mixed-case #include directives,
+    both quoted ("OAIdl.h") and angle-bracket (<OleAuto.h>).  On a
+    case-sensitive filesystem these fail when xwin only provides lowercase
+    filenames.  For each missing mixed-case name, create a stub that redirects
+    to the lowercase angle-bracket form, resolved via the /imsvc SDK paths.
+
+    Must be called AFTER add_lowercase_symlinks so atlmfc files already have
+    their lowercase symlinks before we check for missing names.
+    """
+    include_dir = pathlib.Path(atlmfc_include_dir)
+    if not include_dir.exists():
+        return
+
+    # Match both quoted and angle-bracket #include directives
+    include_re = re.compile(r'#\s*include\s+[<"]([^"<>/\\]+\.h)[">]')
+    wanted = {}  # orig_name -> lowercase_name
+
+    for h in include_dir.rglob("*.h"):
+        try:
+            content = h.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        for m in include_re.finditer(content):
+            name = m.group(1)
+            lc = name.lower()
+            if name == lc:
+                continue  # already lowercase; xwin symlinks cover it
+            if (include_dir / name).exists():
+                continue  # already present (original or lowercase symlink)
+            wanted[name] = lc
+
+    count = 0
+    for orig, lc in sorted(wanted.items()):
+        fwd = include_dir / orig
+        if not fwd.exists():
+            fwd.write_text(f"#include <{lc}>\n", encoding="utf-8")
+            count += 1
+
+    if count:
+        print(
+            f"[get-mfc-sdk] Created {count} SDK forwarding headers in atlmfc/include/",
+            file=sys.stderr,
+        )
 
 
 def main():
@@ -203,11 +306,40 @@ def main():
                 fetch_file(url, str(dest))
             extract_vsix(dest, outdir)
 
-    # 5. Convert any UTF-16 encoded .rc files to UTF-8 (llvm-rc only accepts UTF-8)
+    # 4b. Create non-unicode → unicode compat symlinks for VS2022 which only
+    #     ships unicode MFC variants (mfc140u.lib, mfcs140u.lib).  Non-unicode
+    #     apps (those without _UNICODE) still request mfc140.lib via
+    #     #pragma comment(lib, ...) in afx.h; we redirect to the unicode import
+    #     lib, which exports all the same CStringA/CStringW symbols.
+    lib_dir = outdir / "atlmfc" / "lib" / "x64"
+    for u_name, ansi_name in [
+        ("mfc140u.lib",  "mfc140.lib"),
+        ("mfcs140u.lib", "mfcs140.lib"),
+    ]:
+        u_path = lib_dir / u_name
+        ansi_path = lib_dir / ansi_name
+        if u_path.exists() and not ansi_path.exists():
+            ansi_path.symlink_to(u_name)
+            print(f"[get-mfc-sdk] Symlink: {ansi_name} → {u_name}", file=sys.stderr)
+
+    # 5a. Fix backslash resource paths in atlmfc RC files for llvm-rc on Linux.
+    #     afxres.rc contains "res\\help.cur" etc.; llvm-rc on Linux does not
+    #     treat '\' as a path separator, so convert \\ → /.
+    _fix_rc_paths(outdir / "atlmfc" / "include")
+
+    # 5b. Patch afxmsg_.h: MSVC accepts member-function names without & in casts,
+    #    but clang-cl requires explicit &.  Change (memberFxn) → (&memberFxn).
+    _patch_afxmsg(outdir / "atlmfc" / "include")
+
+    # 6. Convert any UTF-16 encoded .rc files to UTF-8 (llvm-rc only accepts UTF-8)
     _convert_utf16_rc(outdir / "atlmfc" / "include")
 
     # 6. Add lowercase symlinks for case-insensitive #include compatibility
     add_lowercase_symlinks(outdir / "atlmfc" / "include")
+
+    # 7. Create forwarding headers for mixed-case Windows SDK #includes
+    #    (e.g. atliface.h does #include "OAIdl.h" but xwin provides oaidl.h)
+    create_sdk_forwarding_headers(outdir / "atlmfc" / "include")
 
     # Verify output
     include_dir = outdir / "atlmfc" / "include"

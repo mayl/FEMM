@@ -16,12 +16,11 @@ extern lua_State* lua;
 extern BOOL bLinehook;
 extern int m_luaWindowStatus;
 
-#define CatchNullDocument()                                   \
-  ;                                                           \
-  if (pBeladrawDoc == NULL) {                                 \
-    CString msg = "No current electrostatics input in focus"; \
-    lua_error(L, msg.GetBuffer(1));                           \
-    return 0;                                                 \
+#define CatchNullDocument()                                              \
+  ;                                                                      \
+  if (pBeladrawDoc == NULL) {                                            \
+    lua_error(L, "No current electrostatics input in focus");            \
+    return 0;                                                            \
   }
 
 //---------------------Lua Extensions------------------------
@@ -198,9 +197,9 @@ int CbeladrawDoc::lua_switchfocus(lua_State* L)
   n = lua_gettop(L);
   if (n == 0)
     return NULL;
-  DocTitle.Format("%s", lua_tostring(L, n));
+  DocTitle.Format(L"%S", lua_tostring(L, n));
   DocTitle.MakeLower();
-  if (DocTitle.Right(4) == ".fee")
+  if (DocTitle.Right(4) == L".fee")
     DocTitle = DocTitle.Left(DocTitle.GetLength() - 4);
 
   // get pointer to document template for FemmeDoc
@@ -225,8 +224,8 @@ int CbeladrawDoc::lua_switchfocus(lua_State* L)
 
   // if we can't find it, throw an error message
   CString msg;
-  msg.Format("No document that matches %s", DocTitle);
-  lua_error(L, msg.GetBuffer(1));
+  msg.Format(L"No document that matches %s", (LPCWSTR)DocTitle);
+  lua_error(L, (LPCSTR)CStringA(msg));
   return NULL;
 }
 
@@ -247,7 +246,7 @@ int CbeladrawDoc::luaSaveDocument(lua_State* L)
   n = lua_gettop(L);
 
   CString temp;
-  temp.Format("%s", lua_tostring(L, n));
+  temp.Format(L"%S", lua_tostring(L, n));
   thisDoc->OnSaveDocument(temp);
   thisDoc->SetPathName(temp);
 
@@ -274,7 +273,7 @@ int CbeladrawDoc::lua_readdxf(lua_State* L)
   n = lua_gettop(L);
   if (n == 0)
     return FALSE;
-  DocTitle.Format("%s", lua_tostring(L, 1));
+  DocTitle.Format(L"%S", lua_tostring(L, 1));
   if (n == 2)
     DefTol = lua_todouble(L, 2);
   else
@@ -306,7 +305,7 @@ int CbeladrawDoc::lua_savedxf(lua_State* L)
   n = lua_gettop(L);
   if (n == 0)
     return FALSE;
-  DocTitle.Format("%s", lua_tostring(L, 1));
+  DocTitle.Format(L"%S", lua_tostring(L, 1));
 
   result = thisDoc->WriteDXF(DocTitle);
   if (result)
@@ -325,7 +324,7 @@ int CbeladrawDoc::lua_comment(lua_State* L)
 
   if (n > 0) {
     CString myComment;
-    myComment.Format("%s", lua_tostring(L, 1));
+    myComment.Format(L"%S", lua_tostring(L, 1));
     thisDoc->ProblemNote = myComment;
   }
 
@@ -348,8 +347,8 @@ int CbeladrawDoc::lua_prob_def(lua_State* L)
   double Precision;
   double MinAngle = -1;
 
-  units.Format("%s", lua_tostring(L, 1));
-  type.Format("%s", lua_tostring(L, 2));
+  units.Format(L"%S", lua_tostring(L, 1));
+  type.Format(L"%S", lua_tostring(L, 2));
   Precision = lua_todouble(L, 3);
   if (n > 3)
     thisDoc->Depth = lua_todouble(L, 4);
@@ -378,8 +377,8 @@ int CbeladrawDoc::lua_prob_def(lua_State* L)
 
   if (LengthUnits == -1) {
     CString msg;
-    msg.Format("Unknown length unit %s", units);
-    lua_error(L, msg.GetBuffer(1));
+    msg.Format(L"Unknown length unit %s", (LPCWSTR)units);
+    lua_error(L, (LPCSTR)CStringA(msg));
     return 0;
   } else {
     thisDoc->LengthUnits = LengthUnits;
@@ -387,8 +386,8 @@ int CbeladrawDoc::lua_prob_def(lua_State* L)
 
   if (ProblemType == -1) {
     CString msg;
-    msg.Format("Unknown problem type %s", type);
-    lua_error(L, msg.GetBuffer(1));
+    msg.Format(L"Unknown problem type %s", (LPCWSTR)type);
+    lua_error(L, (LPCSTR)CStringA(msg));
     return 0;
 
   } else {
@@ -848,9 +847,9 @@ int CbeladrawDoc::lua_setnodeprop(lua_State* L)
   CString nodeprop, inconductor;
   int groupno;
 
-  nodeprop.Format("%s", lua_tostring(L, 1));
+  nodeprop.Format(L"%S", lua_tostring(L, 1));
   groupno = (int)lua_todouble(L, 2);
-  inconductor.Format("%s", lua_tostring(L, 3));
+  inconductor.Format(L"%S", lua_tostring(L, 3));
 
   if (groupno < 0) {
     CString msg;
@@ -897,7 +896,7 @@ int CbeladrawDoc::lua_setblockprop(lua_State* L)
   group = 0;
 
   if (n > 0)
-    blocktype.Format("%s", lua_tostring(L, 1));
+    blocktype.Format(L"%S", lua_tostring(L, 1));
   if (n > 1)
     automesh = (int)lua_todouble(L, 2);
   if (n > 2)
@@ -935,12 +934,12 @@ int CbeladrawDoc::lua_setsegmentprop(lua_State* L)
   double elesize;
   int automesh, hide, group;
 
-  prop.Format("%s", lua_tostring(L, 1));
+  prop.Format(L"%S", lua_tostring(L, 1));
   elesize = lua_todouble(L, 2);
   automesh = (int)lua_todouble(L, 3);
   hide = (int)lua_todouble(L, 4);
   group = (int)lua_todouble(L, 5);
-  inconductor.Format("%s", lua_tostring(L, 6));
+  inconductor.Format(L"%S", lua_tostring(L, 6));
 
   CbeladrawDoc* thisDoc;
   CbeladrawView* theView;
@@ -982,10 +981,10 @@ int CbeladrawDoc::lua_setarcsegmentprop(lua_State* L)
     maxsegdeg = 10;
   if (maxsegdeg <= 0)
     maxsegdeg = 1;
-  boundprop.Format("%s", lua_tostring(L, 2));
+  boundprop.Format(L"%S", lua_tostring(L, 2));
   hide = (int)lua_todouble(L, 3);
   group = (int)lua_todouble(L, 4);
-  inconductor.Format("%s", lua_tostring(L, 5));
+  inconductor.Format(L"%S", lua_tostring(L, 5));
 
   CbeladrawDoc* thisDoc;
   CbeladrawView* theView;
@@ -1425,7 +1424,7 @@ int CbeladrawDoc::lua_seteditmode(lua_State* L)
   CatchNullDocument();
   CString EditAction;
 
-  EditAction.Format("%s", lua_tostring(L, 1));
+  EditAction.Format(L"%S", lua_tostring(L, 1));
   EditAction.MakeLower();
 
   CbeladrawDoc* thisDoc;
@@ -1521,7 +1520,7 @@ int CbeladrawDoc::lua_addmatprop(lua_State* L)
   int n = lua_gettop(L);
 
   if (n > 0)
-    m.BlockName.Format("%s", lua_tostring(L, 1));
+    m.BlockName.Format(L"%S", lua_tostring(L, 1));
   if (n > 1) {
     m.ex = lua_todouble(L, 2);
     m.ey = m.ex;
@@ -1547,7 +1546,7 @@ int CbeladrawDoc::lua_modmatprop(lua_State* L)
   // find the index of the material to modify;
   if (thisDoc->blockproplist.GetSize() == 0)
     return TRUE;
-  BlockName.Format("%s", lua_tostring(L, 1));
+  BlockName.Format(L"%S", lua_tostring(L, 1));
   for (k = 0; k < thisDoc->blockproplist.GetSize(); k++)
     if (BlockName == thisDoc->blockproplist[k].BlockName)
       break;
@@ -1561,7 +1560,7 @@ int CbeladrawDoc::lua_modmatprop(lua_State* L)
   // now, modify the specified attribute...
   switch (modprop) {
   case 0:
-    thisDoc->blockproplist[k].BlockName.Format("%s", lua_tostring(L, 3));
+    thisDoc->blockproplist[k].BlockName.Format(L"%S", lua_tostring(L, 3));
     break;
   case 1:
     thisDoc->blockproplist[k].ex = lua_todouble(L, 3);
@@ -1587,7 +1586,7 @@ int CbeladrawDoc::lua_addboundprop(lua_State* L)
   int n = lua_gettop(L);
 
   if (n > 0)
-    m.BdryName.Format("%s", lua_tostring(L, 1));
+    m.BdryName.Format(L"%S", lua_tostring(L, 1));
   if (n > 1)
     m.V = lua_todouble(L, 2);
   if (n > 2)
@@ -1615,7 +1614,7 @@ int CbeladrawDoc::lua_modboundprop(lua_State* L)
   // find the index of the boundary property to modify;
   if (thisDoc->lineproplist.GetSize() == 0)
     return TRUE;
-  BdryName.Format("%s", lua_tostring(L, 1));
+  BdryName.Format(L"%S", lua_tostring(L, 1));
   for (k = 0; k < thisDoc->lineproplist.GetSize(); k++)
     if (BdryName == thisDoc->lineproplist[k].BdryName)
       break;
@@ -1629,7 +1628,7 @@ int CbeladrawDoc::lua_modboundprop(lua_State* L)
   // now, modify the specified attribute...
   switch (modprop) {
   case 0:
-    thisDoc->lineproplist[k].BdryName.Format("%s", lua_tostring(L, 3));
+    thisDoc->lineproplist[k].BdryName.Format(L"%S", lua_tostring(L, 3));
     break;
   case 1:
     thisDoc->lineproplist[k].V = lua_todouble(L, 3);
@@ -1661,7 +1660,7 @@ int CbeladrawDoc::lua_addpointprop(lua_State* L)
   int n = lua_gettop(L);
 
   if (n > 0)
-    m.PointName.Format("%s", lua_tostring(L, 1));
+    m.PointName.Format(L"%S", lua_tostring(L, 1));
   if (n > 1)
     m.V = lua_todouble(L, 2);
   if (n > 2)
@@ -1683,7 +1682,7 @@ int CbeladrawDoc::lua_modpointprop(lua_State* L)
   // find the index of the material to modify;
   if (thisDoc->nodeproplist.GetSize() == 0)
     return TRUE;
-  PointName.Format("%s", lua_tostring(L, 1));
+  PointName.Format(L"%S", lua_tostring(L, 1));
   for (k = 0; k < thisDoc->nodeproplist.GetSize(); k++)
     if (PointName == thisDoc->nodeproplist[k].PointName)
       break;
@@ -1697,7 +1696,7 @@ int CbeladrawDoc::lua_modpointprop(lua_State* L)
   // now, modify the specified attribute...
   switch (modprop) {
   case 0:
-    thisDoc->nodeproplist[k].PointName.Format("%s", lua_tostring(L, 3));
+    thisDoc->nodeproplist[k].PointName.Format(L"%S", lua_tostring(L, 3));
     break;
   case 1:
     thisDoc->nodeproplist[k].V = lua_todouble(L, 3);
@@ -1754,7 +1753,7 @@ int CbeladrawDoc::lua_modcircprop(lua_State* L)
   // find the index of the material to modify;
   if (thisDoc->circproplist.GetSize() == 0)
     return TRUE;
-  CircName.Format("%s", lua_tostring(L, 1));
+  CircName.Format(L"%S", lua_tostring(L, 1));
   for (k = 0; k < thisDoc->circproplist.GetSize(); k++)
     if (CircName == thisDoc->circproplist[k].CircName)
       break;
@@ -1768,7 +1767,7 @@ int CbeladrawDoc::lua_modcircprop(lua_State* L)
   // now, modify the specified attribute...
   switch (modprop) {
   case 0:
-    thisDoc->circproplist[k].CircName.Format("%s", lua_tostring(L, 3));
+    thisDoc->circproplist[k].CircName.Format(L"%S", lua_tostring(L, 3));
     break;
   case 3:
     thisDoc->circproplist[k].CircType = (int)lua_todouble(L, 3);
@@ -1790,7 +1789,7 @@ int CbeladrawDoc::lua_delcircuitprop(lua_State* L)
 {
   CatchNullDocument();
   CString name;
-  name.Format("%s", lua_tostring(L, 1));
+  name.Format(L"%S", lua_tostring(L, 1));
 
   CbeladrawDoc* thisDoc = (CbeladrawDoc*)pBeladrawDoc;
 
@@ -1806,7 +1805,7 @@ int CbeladrawDoc::lua_delmatprop(lua_State* L)
 {
   CatchNullDocument();
   CString name;
-  name.Format("%s", lua_tostring(L, 1));
+  name.Format(L"%S", lua_tostring(L, 1));
 
   CbeladrawDoc* thisDoc = (CbeladrawDoc*)pBeladrawDoc;
 
@@ -1822,7 +1821,7 @@ int CbeladrawDoc::lua_delboundprop(lua_State* L)
 {
   CatchNullDocument();
   CString name;
-  name.Format("%s", lua_tostring(L, 1));
+  name.Format(L"%S", lua_tostring(L, 1));
 
   CbeladrawDoc* thisDoc = (CbeladrawDoc*)pBeladrawDoc;
 
@@ -1838,7 +1837,7 @@ int CbeladrawDoc::lua_delpointprop(lua_State* L)
 {
   CatchNullDocument();
   CString name;
-  name.Format("%s", lua_tostring(L, 1));
+  name.Format(L"%S", lua_tostring(L, 1));
 
   CbeladrawDoc* thisDoc = (CbeladrawDoc*)pBeladrawDoc;
 
@@ -1889,7 +1888,7 @@ int CbeladrawDoc::lua_savebitmap(lua_State* L)
   theView = (CbeladrawView*)thisDoc->GetNextView(pos);
   CString filename;
 
-  filename.Format("%s", lua_tostring(L, 1));
+  filename.Format(L"%S", lua_tostring(L, 1));
 
   RECT r;
   CDC tempDC;
@@ -2068,7 +2067,7 @@ int CbeladrawDoc::lua_saveWMF(lua_State* L)
 
   CString filename;
 
-  filename.Format("%s", lua_tostring(L, 1));
+  filename.Format(L"%S", lua_tostring(L, 1));
 
   RECT r;
   CDC tempDC;
@@ -2151,7 +2150,7 @@ int CbeladrawDoc::lua_gridsnap(lua_State* L)
   theView = (CbeladrawView*)thisDoc->GetNextView(pos);
 
   CString temp;
-  temp.Format("%s", lua_tostring(L, 1));
+  temp.Format(L"%S", lua_tostring(L, 1));
   temp.MakeLower();
 
   CMainFrame* MFrm;
@@ -2195,7 +2194,7 @@ int CbeladrawDoc::lua_setgrid(lua_State* L)
   double gridsize;
 
   gridsize = lua_todouble(L, 1);
-  temp.Format("%s", lua_tostring(L, 2));
+  temp.Format(L"%S", lua_tostring(L, 2));
   temp.MakeLower();
 
   if (temp == "cart")

@@ -171,9 +171,17 @@ def find_flake(start_dir):
     raise FileNotFoundError(f"No flake.nix found above {start_dir}")
 
 
-def run_femm(flake_dir, wine_script, wine_outdir, timeout=300, interactive=False):
-    """Run FEMM via the Nix flake wrapper. Raises on non-zero exit."""
-    cmd = ["nix", "run", f"{flake_dir}#femm", "--"]
+def run_femm(flake_dir, wine_script, wine_outdir, timeout=300, interactive=False,
+             femm_exe=None):
+    """Run FEMM via the Nix flake wrapper. Raises on non-zero exit.
+
+    If femm_exe is given (absolute Linux path to a built femm.exe), use the
+    femm-dev wine wrapper instead of the pre-built installer.
+    """
+    if femm_exe:
+        cmd = ["nix", "run", f"{flake_dir}#femm-dev", "--", str(femm_exe)]
+    else:
+        cmd = ["nix", "run", f"{flake_dir}#femm", "--"]
     if not interactive:
         cmd.append("/windowhide")
     cmd += [
@@ -200,7 +208,8 @@ def linux_to_wine(path):
 
 # ── per-test logic ────────────────────────────────────────────────────────────
 
-def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interactive=False):
+def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interactive=False,
+             femm_exe=None):
     test_dir = pathlib.Path(test_dir).resolve()
     name = test_dir.name
 
@@ -236,7 +245,7 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
         print(f"  Launching FEMM interactively (window will open)...")
         print(f"  Work dir: {work_dir}")
         try:
-            run_femm(flake_dir, wine_script, wine_outdir, interactive=True)
+            run_femm(flake_dir, wine_script, wine_outdir, interactive=True, femm_exe=femm_exe)
         except Exception as e:
             print(f"  FEMM session ended: {e}")
         return True
@@ -244,7 +253,7 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
     print(f"  Running FEMM (headless)...")
     t0 = time.monotonic()
     try:
-        run_femm(flake_dir, wine_script, wine_outdir)
+        run_femm(flake_dir, wine_script, wine_outdir, femm_exe=femm_exe)
     except Exception as e:
         print(f"  ERROR: FEMM run failed: {e}")
         return False
@@ -364,6 +373,9 @@ def main():
                         help="Test directories to run (default: all under tests/)")
     parser.add_argument("--flake", metavar="PATH",
                         help="Path to Nix flake (default: auto-detect)")
+    parser.add_argument("--femm-exe", metavar="PATH",
+                        help="Path to a locally-built femm.exe; uses nix run .#femm-dev "
+                             "instead of the pre-built installer")
     parser.add_argument("--update-baseline", action="store_true",
                         help="Update expected.json from current simulation output")
     parser.add_argument("--interactive", "-i", action="store_true",
@@ -397,7 +409,11 @@ def main():
             print(f"ERROR: {e}")
             sys.exit(1)
 
+    femm_exe = pathlib.Path(args.femm_exe).resolve() if args.femm_exe else None
+
     print(f"Flake:  {flake_dir}")
+    if femm_exe:
+        print(f"Binary: {femm_exe} (built)")
     print(f"Tests:  {[str(d) for d in test_dirs]}")
     if args.update_baseline:
         print("Mode:   UPDATE BASELINE")
@@ -414,6 +430,7 @@ def main():
             verbose=args.verbose,
             update_baseline=args.update_baseline,
             interactive=args.interactive,
+            femm_exe=femm_exe,
         )
         results[test_dir.name] = passed
 
