@@ -353,11 +353,23 @@ for _solver, _filter, _uses_return in [
         '    delete[] fname_dia;\n'
         '  } else\n'
         '    strcpy(PathName, __argv[1]);',
-        '  if (__argc < 2) {\n'
-        '    MsgBox("Usage: solver <filename>");\n'
-        f'    {_bail}\n'
-        '  }\n'
-        '  strcpy(PathName, __argv[1]);',
+        '  // __argv (narrow) is not initialized in Unicode builds.\n'
+        '  // Parse the path from the dialog\'s ComLine (= m_lpCmdLine).\n'
+        '  {\n'
+        '    CString _comline = TheView->ComLine;\n'
+        '    if (_comline.IsEmpty()) {\n'
+        '      MsgBox("Usage: solver <filename>");\n'
+        f'      {_bail}\n'
+        '    }\n'
+        '    if (_comline[0] == L\'"\') {\n'
+        '      int _q = _comline.Find(L\'"\', 1);\n'
+        '      _comline = (_q > 1) ? _comline.Mid(1, _q - 1) : _comline.Mid(1);\n'
+        '    } else {\n'
+        '      int _sp = _comline.Find(L\' \');\n'
+        '      if (_sp >= 0) _comline = _comline.Left(_sp);\n'
+        '    }\n'
+        '    WideCharToMultiByte(CP_ACP, 0, _comline, -1, PathName, sizeof(PathName), NULL, NULL);\n'
+        '  }',
     )])
 
 # All solver MAIN files: common narrow-string patterns.

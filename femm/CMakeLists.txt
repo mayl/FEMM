@@ -366,5 +366,6 @@ target_include_directories(femm PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(femm liblua ResizableLib)
 install(TARGETS femm DESTINATION "${INSTALL_BIN_DIR}")
 install(FILES res/femm.tlb DESTINATION "${INSTALL_BIN_DIR}" RENAME femm.TLB)
+install(FILES "${CMAKE_SOURCE_DIR}/bin/init.lua" DESTINATION "${INSTALL_BIN_DIR}")
 
 endif() # WIN32
