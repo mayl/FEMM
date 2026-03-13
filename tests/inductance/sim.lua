@@ -10,6 +10,7 @@
 --   outdir/results.txt    — key=value scalar results for test runner
 
 if outdir == nil then outdir = "z:\\tmp\\femm_test_inductance" end
+if interactive == nil then interactive = "0" end
 
 newdocument(0)
 mi_probdef(0, "inches", "planar", 1e-8, 1, 30)
@@ -157,4 +158,4 @@ write("Hy_icore_Am=" .. format("%.10f\n", Hy_icore))
 writeto()
 
 mo_close()
-quit()
+if interactive ~= "1" then quit() end
