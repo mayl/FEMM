@@ -224,7 +224,26 @@
       # To enable a phase, change the corresponding SKIP_* flag below to OFF.
       femm-built = pkgs.stdenv.mkDerivation {
         name = "femm-built";
-        src = ./.;
+        src = pkgs.lib.cleanSourceWith {
+          src = ./.;
+          name = "femm-source";
+          # Only include files needed to compile — excludes tests/, scripts/,
+          # .beads/, examples/, docs, and other non-build content so that
+          # changes to those files don't trigger a full recompile.
+          filter = path: _type:
+            let
+              rel = pkgs.lib.removePrefix (toString ./. + "/") path;
+            in
+            rel == "CMakeLists.txt" ||
+            builtins.any
+              (d: rel == d || pkgs.lib.hasPrefix (d + "/") rel)
+              [
+                "femm" "fkn" "belasolv" "csolv" "hsolv"
+                "triangle" "triangle64" "liblua" "ResizableLib"
+                "femmplot" "scifemm" "libfemm" "mathfemm"
+                "bin"
+              ];
+        };
         nativeBuildInputs = [
           pkgs.cmake
           pkgs.ninja
