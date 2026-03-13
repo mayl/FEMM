@@ -154,11 +154,18 @@ MLENV mathenv;
 
 BOOL CFemmApp::InitInstance()
 {
-  // Initialize OLE libraries
+  // OLE/COM initialization crashes under Wine: AfxOleInit() calls
+  // COleObjectFactory::RegisterAll() which dereferences a null pointer during
+  // factory enumeration.  Skip all OLE init — the simulation GUI works without
+  // COM automation (ActiveFEMM is only needed for external OLE clients, which
+  // don't work under Wine anyway).  Re-enable these when building for native
+  // Windows with a working COM stack.
+#if 0
   if (!AfxOleInit()) {
     MsgBox("OLE initialization failed.  Make sure that the OLE libraries are the correct version.");
     return FALSE;
   }
+#endif
 
   // Standard initialization
   // If you are not using these features and wish to reduce the size
@@ -182,19 +189,15 @@ BOOL CFemmApp::InitInstance()
   if (RunEmbedded() || RunAutomated()) {
     // Register all OLE server (factories) as running.  This enables the
     //  OLE libraries to create objects from other applications.
-    COleTemplateServer::RegisterAll();
+    // COleTemplateServer::RegisterAll();  // requires AfxOleInit()
     m_luaWindowStatus = SW_SHOWMINNOACTIVE;
   } else {
-    // When a server application is launched stand-alone, it is a good idea
-    //  to update the system registry in case it has been damaged.
-    COleObjectFactory::UpdateRegistryAll();
+    // COleObjectFactory::UpdateRegistryAll();  // requires AfxOleInit()
   }
 
   // 04EF434A-1A91-495A-85AA-C625602B4AF4
-  const IID LIBID_ActiveFEMM = { 0x04EF434A, 0x1A91, 0x495A, { 0x85, 0xAA, 0xC6, 0x25, 0x60, 0x2B, 0x4A, 0xF4 } };
-
-  //	if(AfxOleRegisterTypeLib(AfxGetInstanceHandle(), LIBID_ActiveFEMM, _T("femm.TLB"))==FALSE) MsgBox("TypeLib not registered!");
-  AfxOleRegisterTypeLib(AfxGetInstanceHandle(), LIBID_ActiveFEMM, _T("femm.TLB"), NULL);
+  // const IID LIBID_ActiveFEMM = ...
+  // AfxOleRegisterTypeLib(...);  // requires AfxOleInit()
 
   // Initialize Lua
   bLinehook = FALSE;
@@ -551,8 +554,11 @@ BOOL CFemmApp::OnIdle(LONG lCount)
     }
     StatBar->SetPaneText(0, "Ready", TRUE);
     if (lua_byebye == TRUE) {
-      ASSERT(AfxGetMainWnd() != NULL);
-      AfxGetMainWnd()->PostMessage(WM_CLOSE);
+      // PostMessage(WM_CLOSE) triggers MFC document/window teardown which
+      // crashes under Wine (null vtable deref in COM cleanup). Bypass by
+      // exiting directly — the Lua script has already written its output.
+      lua_close(lua);
+      ::ExitProcess(0);
     }
     bLinehook = FALSE;
   }

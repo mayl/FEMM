@@ -52,7 +52,8 @@
 // #define MATHLINK
 
 // comment the following line if you don't want a tabbed MDI interface.
-#define MDITAB
+// Disabled: CMDITabs crashes under Wine (null deref in CTabCtrl message handling).
+// #define MDITAB
 
 #include "complex.h"
 
