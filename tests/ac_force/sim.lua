@@ -131,8 +131,6 @@ mo_selectblock(0, -0.125)
 Fy_ac_dc_comp = mo_blockintegral(19)
 mo_clearblock()
 
-mo_close()
-
 -- ── Write results ──────────────────────────────────────────────────────────
 writeto(outdir .. "\\results.txt")
 
@@ -141,4 +139,7 @@ write("Fy_ac_dc_N=" .. format("%.10f\n", Fy_ac_dc_comp))
 
 writeto()
 
-if interactive ~= "1" then quit() end
+if interactive ~= "1" then
+  mo_close()
+  quit()
+end

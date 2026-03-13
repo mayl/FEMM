@@ -157,5 +157,11 @@ write("Hy_icore_Am=" .. format("%.10f\n", Hy_icore))
 
 writeto()
 
-mo_close()
-if interactive ~= "1" then quit() end
+-- In headless mode: close the post-processor before quitting.
+-- In interactive mode: leave the solution loaded so the user can inspect
+-- it visually and re-run analysis from the GUI (close the post-processor
+-- window manually via the MDI child X button, then use Analysis > Analyze).
+if interactive ~= "1" then
+  mo_close()
+  quit()
+end

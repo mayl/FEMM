@@ -78,8 +78,6 @@ mo_selectblock(0, 0.5)
 W_air = mo_blockintegral(2)
 mo_clearblock()
 
-mo_close()
-
 -- ── Write results ──────────────────────────────────────────────────────────
 writeto(outdir .. "\\results.txt")
 
@@ -92,4 +90,7 @@ write("W_air_J="     .. format("%.10e\n", W_air))
 
 writeto()
 
-if interactive ~= "1" then quit() end
+if interactive ~= "1" then
+  mo_close()
+  quit()
+end
