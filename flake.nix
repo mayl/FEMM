@@ -3,6 +3,7 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.claude-code-nix.url = "github:sadjow/claude-code-nix";
+  inputs.llm-agents.url = "github:numtide/llm-agents.nix";
   outputs = { self, nixpkgs, ... }@inputs:
     let
       system = "x86_64-linux";
@@ -382,7 +383,7 @@ ENDTOOLCHAIN
         default = pkgs.mkShell {
           packages = [
             pkgs.just
-            pkgs.beads
+            inputs.llm-agents.packages.${system}.beads
             inputs.claude-code-nix.packages.${system}.default
           ];
         };
@@ -400,7 +401,7 @@ ENDTOOLCHAIN
             llvmPkgs.lld
             llvmPkgs.llvm
             pkgs.just
-            pkgs.beads
+            inputs.llm-agents.packages.${system}.beads
             inputs.claude-code-nix.packages.${system}.default
           ];
           shellHook = ''
