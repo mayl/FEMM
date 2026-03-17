@@ -12,6 +12,40 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## Nix Flake Reference
+
+### Packages (`nix build .#<name>`)
+
+| Attribute | Description |
+|-----------|-------------|
+| `femm` (default) | Pre-built FEMM: downloads installer, extracts with innoextract, wraps with Wine |
+| `femm-built` | Cross-compiled from source: clang-cl + Windows SDK + MFC SDK → `.exe` binaries |
+| `femm-dev` | Wine wrapper that takes an exe path as first arg (for testing local builds) |
+
+### Apps (`nix run .#<name>`)
+
+| Attribute | Description |
+|-----------|-------------|
+| `nix run .` | Launch pre-built FEMM via Wine |
+| `nix run .#femm-dev -- /path/to/femm.exe [args...]` | Launch any femm.exe via Wine (use with local builds) |
+| `nix run .#test` | Run regression tests against the **pre-built** binary |
+| `nix run .#test-femm-built` | Run regression tests against the **cross-compiled** binary |
+| `nix run .#test-femm-built -- --interactive tests/inductance` | Run one test interactively (shows FEMM window) |
+
+### Dev Shells (`nix develop .#<name>`)
+
+| Attribute | Description |
+|-----------|-------------|
+| `nix develop` (default) | General shell with `just`, `beads`, `claude-code` |
+| `nix develop .#build` | Incremental build shell: cmake, ninja, clang-cl, lld, llvm + env vars for Windows/MFC SDK |
+
+### Testing the cross-compiled GUI interactively
+
+To launch the cross-compiled FEMM with a GUI (e.g. to check a dialog fix):
+```bash
+nix run .#femm-dev -- "$(nix build .#femm-built --print-out-paths)/bin/femm.exe"
+```
+
 ## Incremental Build Workflow
 
 Use this for quick compile/test cycles without a full `nix build`.
@@ -40,6 +74,12 @@ nix develop .#build --command just build-target fkn
 - `just sync-build` rsyncs your edits to `build/src/`, re-applies `scripts/patch-sources.py` (needed because rsync `--delete` removes patch-created symlinks/files), then runs ninja.
 - Cross-compiles to Windows (clang-cl targeting x86_64-pc-windows-msvc). `WIN32` is always true in this build.
 - To verify a clean Linux configure (no MFC): `nix shell nixpkgs#cmake --command cmake <repo> -B /tmp/test`
+- `scripts/patch-sources.py` handles several llvm-rc incompatibilities with MSVC's rc.exe:
+  - `\\` → `/` path separators
+  - Strips `VERSIONINFO` blocks (llvm-rc rejects null strings, non-ASCII, L suffixes)
+  - Latin-1 → UTF-8 encoding
+  - `DLGINIT` → integer type `240` (llvm-rc doesn't know DLGINIT = RT_DLGINIT, stores as string-named resource; MFC looks up by integer → empty combo boxes)
+  - `TOOLBAR` → integer type `241` as raw binary (llvm-rc doesn't support TOOLBAR syntax)
 
 ## Landing the Plane (Session Completion)
 

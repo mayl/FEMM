@@ -36,6 +36,7 @@ double_bs = re.compile(r"\\\\")
 begin_re = re.compile(r"\bBEGIN\b")
 end_re = re.compile(r"\bEND\b")
 vi_start_re = re.compile(r"\bVS_VERSION_INFO\b")
+dlginit_re = re.compile(r'^(\w+)\s+DLGINIT\b', re.MULTILINE)
 toolbar_hdr_re = re.compile(
     r'^(\w+)\s+TOOLBAR\s+(\d+)\s*,\s*(\d+)\s*$', re.MULTILINE)
 
@@ -118,7 +119,14 @@ for rc in all_rc:
         else:
             out.append(lines[i])
             i += 1
-    # d) Convert TOOLBAR resources to raw binary (RT_TOOLBAR = 241).
+    # d) Replace "DLGINIT" with integer type 240 (RT_DLGINIT).
+    #    llvm-rc doesn't know DLGINIT maps to type 240, so it stores it as a
+    #    string-named resource.  MFC's ExecuteDlgInit looks up by integer 240,
+    #    causing empty combo boxes.  MSVC rc.exe handles this implicitly.
+    new_text_joined = "".join(out)
+    new_text_joined = dlginit_re.sub(r'\1 240  /* DLGINIT */', new_text_joined)
+    out = new_text_joined.splitlines(keepends=True)
+    # e) Convert TOOLBAR resources to raw binary (RT_TOOLBAR = 241).
     lines2 = out
     out2, i = [], 0
     while i < len(lines2):
