@@ -66,7 +66,7 @@ void CTKData::StripTKData()
 
   k = m_Bdata.GetLength() * 2;
   buff = (char*)calloc(k, sizeof(char));
-  strcpy(buff, (LPCSTR)CStringA(m_Bdata));
+  strcpy(buff, m_Bdata);
   nptr = buff;
   while (sscanf(nptr, "%lf", &z) != EOF) {
     z = strtod(nptr, &endptr);
@@ -80,7 +80,7 @@ void CTKData::StripTKData()
 
   k = m_Hdata.GetLength() * 2;
   buff = (char*)calloc(k, sizeof(char));
-  strcpy(buff, (LPCSTR)CStringA(m_Hdata));
+  strcpy(buff, m_Hdata);
   nptr = buff;
   while (sscanf(nptr, "%lf", &z) != EOF) {
     z = strtod(nptr, &endptr);
@@ -214,12 +214,12 @@ void CTKData::OnPlotBHcurve()
     // in this case call the external program rather than
     // displaying in the window.  Since dialog is running modal,
     // it obscures the plotted BH curve--this is an annoying kludge.
-    wchar_t CommandLine[MAX_PATH];
-    swprintf(CommandLine, MAX_PATH, L"%sfemmplot.exe", (LPCWSTR)((CFemmApp*)AfxGetApp())->GetExecutablePath());
+    char CommandLine[MAX_PATH];
+    sprintf(CommandLine, "%sfemmplot.exe", (const char*)((CFemmApp*)AfxGetApp())->GetExecutablePath());
     STARTUPINFO StartupInfo2 = { 0 };
     PROCESS_INFORMATION ProcessInfo2;
     StartupInfo2.cb = sizeof(STARTUPINFO);
-    CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);
+    CreateProcess(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);
     CloseHandle(ProcessInfo2.hProcess);
     CloseHandle(ProcessInfo2.hThread);
   }
@@ -234,10 +234,10 @@ void CTKData::OnReadBhcurve()
 
   fname_dia = new CFileDialog(
       TRUE,
-      _T("dat | * "),
+      "dat | * ",
       infile,
       OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
-      _T("Two column text data file (*.dat) | *.dat; *.DAT | All Files (*.*) | *.*||"),
+      "Two column text data file (*.dat) | *.dat; *.DAT | All Files (*.*) | *.*||",
       NULL);
 
   if (fname_dia->DoModal() == IDCANCEL) {

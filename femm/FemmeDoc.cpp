@@ -302,9 +302,8 @@ BOOL CFemmeDoc::AddSegment(int n0, int n1, CSegment* parsegm, double tol)
 
   // check to see if there are intersections with segments
   for (i = 0; i < linelist.GetSize(); i++)
-    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE) {
-      CComplex _tmp(xi, yi); newnodes.Add(_tmp);
-    }
+    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE)
+      newnodes.Add(CComplex(xi, yi));
 
   // check to see if there are intersections with arcs
   for (i = 0; i < arclist.GetSize(); i++) {
@@ -2502,8 +2501,8 @@ BOOL CFemmeDoc::OnSaveDocument(LPCTSTR lpszPathName)
 
   fprintf(fp, "[ACSolver]    =  %i\n", ACSolver);
   fprintf(fp, "[PrevType]    =  %i\n", PrevType);
-  fprintf(fp, "[PrevSoln]    =  \"%s\"\n", (LPCSTR)CStringA(PrevSoln));
-  fprintf(fp, "[Comment]     =  \"%s\"\n", (LPCSTR)CStringA(s));
+  fprintf(fp, "[PrevSoln]    =  \"%s\"\n", (const char*)PrevSoln);
+  fprintf(fp, "[Comment]     =  \"%s\"\n", (const char*)s);
 
   // write out materials properties stuff...
   fprintf(fp, "[PointProps]   = %i\n", (int)nodeproplist.GetSize());

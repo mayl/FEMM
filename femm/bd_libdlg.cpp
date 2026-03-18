@@ -943,7 +943,7 @@ void bd_CLibDlg::ImportMaterials()
   if (m_dragTargetTree != NULL) {
     // importing into the library
     // put the imported materials in a new folder
-    Parent = m_mytree.InsertItem(_T("Imported Materials"), 0, 1, LibParent, TVI_FIRST);
+    Parent = m_mytree.InsertItem("Imported Materials", 0, 1, LibParent, TVI_FIRST);
     FProp.FolderName = "Imported Materials";
     FProp.FolderURL = "";
     FProp.FolderVendor = "";

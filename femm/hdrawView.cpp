@@ -2478,13 +2478,13 @@ void ChdrawView::OnMenuAnalyze()
   if (bLinehook == FALSE)
     EndWaitCursor();
 
-  wchar_t CommandLine[512];
-  CString rootname = L"\"" + pn.Left(pn.ReverseFind('.')) + L"\"";
+  char CommandLine[512];
+  CString rootname = "\"" + pn.Left(pn.ReverseFind('.')) + "\"";
 
   if (bLinehook == HiddenLua)
-    swprintf(CommandLine, 512, L"\"%shsolv.exe\" %s bLinehook", (LPCWSTR)BinDir, (LPCWSTR)rootname);
+    sprintf(CommandLine, "\"%shsolv.exe\" %s bLinehook", (const char*)BinDir, (const char*)rootname);
   else
-    swprintf(CommandLine, 512, L"\"%shsolv.exe\" %s", (LPCWSTR)BinDir, (LPCWSTR)rootname);
+    sprintf(CommandLine, "\"%shsolv.exe\" %s", (const char*)BinDir, (const char*)rootname);
 
   CString MyPath = pn.Left(pn.ReverseFind('\\'));
 
@@ -2497,7 +2497,7 @@ void ChdrawView::OnMenuAnalyze()
     //<DP> SHOWNOACTIVATE doesn't steal focus to others </DP>
     StartupInfo2.wShowWindow = SW_SHOWMINNOACTIVE;
   }
-  if (CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE,
+  if (CreateProcess(NULL, CommandLine, NULL, NULL, FALSE,
           0, NULL, MyPath, &StartupInfo2, &ProcessInfo2)) {
     if (bLinehook != FALSE) {
       DWORD ExitCode;
@@ -2692,10 +2692,10 @@ void ChdrawView::OnDxfin()
 
   fname_dia = new CFileDialog(
       TRUE,
-      _T("dxf | * "),
+      "dxf | * ",
       dxffile,
       OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
-      _T("CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||"),
+      "CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||",
       NULL);
 
   if (fname_dia->DoModal() == IDCANCEL) {
@@ -2743,10 +2743,10 @@ void ChdrawView::OnDxfwrite()
 
   fname_dia = new CFileDialog(
       FALSE,
-      _T("dxf | * "),
+      "dxf | * ",
       dxffile,
       OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
-      _T("CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||"),
+      "CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||",
       NULL);
 
   if (fname_dia->DoModal() == IDCANCEL) {

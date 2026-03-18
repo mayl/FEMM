@@ -212,7 +212,7 @@ BOOL CbelaviewDoc::OnOpenDocument(LPCTSTR lpszPathName)
   meshelem.RemoveAll();
   contour.RemoveAll();
 
-  if ((fp = _wfopen(lpszPathName, L"rt")) == NULL) {
+  if ((fp = fopen(lpszPathName, "rt")) == NULL) {
     MsgBox("Couldn't read from specified .poly file");
     return FALSE;
   }
@@ -1878,7 +1878,7 @@ BOOL CbelaviewDoc::ScanPreferences()
 
   fname = BinDir + "belaview.cfg";
 
-  fp = _wfopen(fname, L"rt");
+  fp = fopen(fname, "rt");
   if (fp != NULL) {
     BOOL flag = FALSE;
     char s[1024];
@@ -1942,9 +1942,8 @@ void CbelaviewDoc::BendContour(double angle, double anglestep)
     c = a0 + (R / d) * (a1 - a0) * exp(-I * (PI + tta) / 2.);
 
   // add the points on the contour
-  for (k = 1; k <= n; k++) {
-    CComplex _tmp = c + (a0 - c) * exp(k * I * dtta); contour.Add(_tmp);
-  }
+  for (k = 1; k <= n; k++)
+    contour.Add(c + (a0 - c) * exp(k * I * dtta));
 }
 
 CComplex CbelaviewDoc::E(int k)

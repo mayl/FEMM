@@ -154,18 +154,11 @@ MLENV mathenv;
 
 BOOL CFemmApp::InitInstance()
 {
-  // OLE/COM initialization crashes under Wine: AfxOleInit() calls
-  // COleObjectFactory::RegisterAll() which dereferences a null pointer during
-  // factory enumeration.  Skip all OLE init — the simulation GUI works without
-  // COM automation (ActiveFEMM is only needed for external OLE clients, which
-  // don't work under Wine anyway).  Re-enable these when building for native
-  // Windows with a working COM stack.
-#if 0
+  // Initialize OLE libraries
   if (!AfxOleInit()) {
     MsgBox("OLE initialization failed.  Make sure that the OLE libraries are the correct version.");
     return FALSE;
   }
-#endif
 
   // Standard initialization
   // If you are not using these features and wish to reduce the size
@@ -189,15 +182,19 @@ BOOL CFemmApp::InitInstance()
   if (RunEmbedded() || RunAutomated()) {
     // Register all OLE server (factories) as running.  This enables the
     //  OLE libraries to create objects from other applications.
-    // COleTemplateServer::RegisterAll();  // requires AfxOleInit()
+    COleTemplateServer::RegisterAll();
     m_luaWindowStatus = SW_SHOWMINNOACTIVE;
   } else {
-    // COleObjectFactory::UpdateRegistryAll();  // requires AfxOleInit()
+    // When a server application is launched stand-alone, it is a good idea
+    //  to update the system registry in case it has been damaged.
+    COleObjectFactory::UpdateRegistryAll();
   }
 
   // 04EF434A-1A91-495A-85AA-C625602B4AF4
-  // const IID LIBID_ActiveFEMM = ...
-  // AfxOleRegisterTypeLib(...);  // requires AfxOleInit()
+  const IID LIBID_ActiveFEMM = { 0x04EF434A, 0x1A91, 0x495A, { 0x85, 0xAA, 0xC6, 0x25, 0x60, 0x2B, 0x4A, 0xF4 } };
+
+  //	if(AfxOleRegisterTypeLib(AfxGetInstanceHandle(), LIBID_ActiveFEMM, _T("femm.TLB"))==FALSE) MsgBox("TypeLib not registered!");
+  AfxOleRegisterTypeLib(AfxGetInstanceHandle(), LIBID_ActiveFEMM, _T("femm.TLB"), NULL);
 
   // Initialize Lua
   bLinehook = FALSE;
@@ -512,8 +509,8 @@ int CFemmApp::ExitInstance()
 
 void CFemmApp::OnFileOpenLuaScript()
 {
-  static TCHAR BASED_CODE szFilter[] = _T("Lua Script Files (*.lua)|*.lua|");
-  TCHAR ext[] = _T(".lua");
+  static char BASED_CODE szFilter[] = "Lua Script Files (*.lua)|*.lua|";
+  char ext[] = ".lua";
   CFileDialog MyDlg(TRUE, ext, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, szFilter);
   if (MyDlg.DoModal() == IDOK) {
     luascriptname = MyDlg.GetPathName();
@@ -554,11 +551,8 @@ BOOL CFemmApp::OnIdle(LONG lCount)
     }
     StatBar->SetPaneText(0, "Ready", TRUE);
     if (lua_byebye == TRUE) {
-      // PostMessage(WM_CLOSE) triggers MFC document/window teardown which
-      // crashes under Wine (null vtable deref in COM cleanup). Bypass by
-      // exiting directly — the Lua script has already written its output.
-      lua_close(lua);
-      ::ExitProcess(0);
+      ASSERT(AfxGetMainWnd() != NULL);
+      AfxGetMainWnd()->PostMessage(WM_CLOSE);
     }
     bLinehook = FALSE;
   }
@@ -738,7 +732,7 @@ int CFemmApp::lua_promptbox(lua_State* L)
   if (lua_gettop(L) > 0)
     dlg.mytitle = lua_tostring(L, 1);
   dlg.DoModal();
-  lua_pushstring(L, (LPCSTR)CStringA(dlg.instring));
+  lua_pushstring(L, dlg.instring);
 
   return TRUE;
 }
@@ -772,12 +766,12 @@ int CFemmApp::lua_ERROR(lua_State* L)
   // Windows doesn't have stdout so lets afxmessagebox it
   if (theApp.bFileLink) {
     FILE* fp;
-    fp = _wfopen(theApp.OFile, L"wt");
+    fp = fopen(theApp.OFile, "wt");
     if (fp != NULL) {
-      errmsg.Replace(L"error:", L"");
-      errmsg.Replace(L"\"", L"\\\"");
-      errmsg.Replace(L"\n", L"\\n");
-      fprintf(fp, "error(\"FEMM returns:\\n%s\\n\")", (LPCSTR)CStringA(errmsg));
+      errmsg.Replace("error:", "");
+      errmsg.Replace("\"", "\\\"");
+      errmsg.Replace("\n", "\\n");
+      fprintf(fp, "error(\"FEMM returns:\\n%s\\n\")", (const char*)errmsg);
       fclose(fp);
     }
   } else if (!theApp.bActiveX)
@@ -799,12 +793,12 @@ void CFemmApp::CreateNewDocument(int n)
   // is an XY plot and we want to open it in another window
   // all together
   if ((n == 7) && (d_sepplot)) {
-    wchar_t CommandLine[MAX_PATH];
-    swprintf(CommandLine, MAX_PATH, L"%sfemmplot.exe", (LPCWSTR)((CFemmApp*)AfxGetApp())->GetExecutablePath());
+    char CommandLine[MAX_PATH];
+    sprintf(CommandLine, "%sfemmplot.exe", (const char*)((CFemmApp*)AfxGetApp())->GetExecutablePath());
     STARTUPINFO StartupInfo2 = { 0 };
     PROCESS_INFORMATION ProcessInfo2;
     StartupInfo2.cb = sizeof(STARTUPINFO);
-    CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);
+    CreateProcess(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);
     CloseHandle(ProcessInfo2.hProcess);
     CloseHandle(ProcessInfo2.hThread);
     return;
@@ -834,12 +828,12 @@ BOOL CFemmApp::OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* p
 
 CString CFemmApp::GetExecutablePath()
 {
-  wchar_t szPath[MAX_PATH];
-  wchar_t szDrive[64];
-  wchar_t szDir[MAX_PATH];
+  char szPath[MAX_PATH];
+  char szDrive[64];
+  char szDir[MAX_PATH];
 
-  GetModuleFileNameW(NULL, szPath, MAX_PATH);
-  _wsplitpath(szPath, szDrive, szDir, NULL, NULL);
+  GetModuleFileName(NULL, szPath, MAX_PATH);
+  _splitpath(szPath, szDrive, szDir, NULL, NULL);
 
   return ((CString)szDrive) + szDir;
 }
@@ -1298,7 +1292,7 @@ int CFemmApp::lua_to_filelink(lua_State* L)
   int n = lua_gettop(L);
 
   do {
-    fp = _wfopen(((CFemmApp*)AfxGetApp())->OFile, L"wt");
+    fp = fopen(((CFemmApp*)AfxGetApp())->OFile, "wt");
   } while (fp == NULL);
 
   if (n == 0)
@@ -1313,7 +1307,7 @@ int CFemmApp::lua_to_filelink(lua_State* L)
         LuaResult = LuaResult + s + "]\n";
     }
   }
-  fprintf(fp, "%s", (LPCSTR)CStringA(LuaResult));
+  fprintf(fp, "%s", (const char*)LuaResult);
   fclose(fp);
 
   return 0;

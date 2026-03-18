@@ -58,9 +58,7 @@ BOOL CFknApp::InitInstance()
 #ifdef _AFXDLL
 //	Enable3dControls();			// Call this when using MFC in a shared DLL
 #else
-  // Enable3dControlsStatic() crashes under Wine (null deref in comctl32 init).
-  // Safe to skip — only affects dialog border styling, not functionality.
-  // Enable3dControlsStatic();
+  Enable3dControlsStatic(); // Call this when linking to MFC statically
 #endif
 
   CFknDlg dlg;

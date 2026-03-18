@@ -1055,8 +1055,8 @@ BOOL CFemmviewDoc::OnOpenDocument(LPCTSTR lpszPathName)
 
     fgets(s, 1024, fp);
     age.BdryName = s;
-    age.BdryName.Replace(L"\"", L"");
-    age.BdryName.Replace(L"\n", L"");
+    age.BdryName.Replace("\"", "");
+    age.BdryName.Replace("\n", "");
     fgets(s, 1024, fp);
     sscanf(s, "%i %lf %lf %lf %lf %lf %lf %lf %i %lf %lf",
         &age.BdryFormat, &age.InnerAngle, &age.OuterAngle,
@@ -1322,9 +1322,9 @@ BOOL CFemmviewDoc::OnOpenDocument(LPCTSTR lpszPathName)
       CString str;
       CComplex X;
       X = meshelem[i].ctr;
-      str.Format(L"x=%.17g\ny=%.17g\nr=x\nz=y\ntheta=%.17g\nR=%.17g\nreturn %s",
-          X.re, X.im, arg(X) * 180 / PI, abs(X), (LPCTSTR)blocklist[meshelem[i].lbl].MagDirFctn);
-      lua_dostring(LocalLua, (LPCSTR)CStringA(str));
+      str.Format("x=%.17g\ny=%.17g\nr=x\nz=y\ntheta=%.17g\nR=%.17g\nreturn %s",
+          X.re, X.im, arg(X) * 180 / PI, abs(X), blocklist[meshelem[i].lbl].MagDirFctn);
+      lua_dostring(LocalLua, str);
       meshelem[i].magdir = Re(lua_tonumber(LocalLua, -1));
       lua_pop(LocalLua, 1);
     }
@@ -4067,9 +4067,8 @@ void CFemmviewDoc::BendContour(double angle, double anglestep)
     c = a0 + (R / d) * (a1 - a0) * exp(-I * (PI + tta) / 2.);
 
   // add the points on the contour
-  for (k = 1; k <= n; k++) {
-    CComplex _tmp = c + (a0 - c) * exp(k * I * dtta); contour.Add(_tmp);
-  }
+  for (k = 1; k <= n; k++)
+    contour.Add(c + (a0 - c) * exp(k * I * dtta));
 }
 
 BOOL CFemmviewDoc::OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo)

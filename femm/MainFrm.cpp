@@ -72,7 +72,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
   LOGFONT lf; // Used to create the CFont.
   memset(&lf, 0, sizeof(LOGFONT)); // Clear out structure.
   lf.lfHeight = 16;
-  wcscpy(lf.lfFaceName, L"MS Sans Serif");
+  strcpy(lf.lfFaceName, "MS Sans Serif");
   m_StatusBarFont.CreateFontIndirect(&lf); // Create the font.
   m_wndStatusBar.SetFont(&m_StatusBarFont);
 
@@ -448,9 +448,9 @@ void CMainFrame::OnPreferences()
 void CMainFrame::OnHelpFinder()
 {
   CString manualname = theApp.GetExecutablePath() + "manual.pdf";
-  if (((int)ShellExecuteW(m_hWnd, L"open", manualname, L"", L"", SW_SHOWMAXIMIZED)) <= 32) {
+  if (((int)ShellExecute(m_hWnd, "open", manualname, "", "", SW_SHOWMAXIMIZED)) <= 32) {
     CString mymsg;
-    mymsg.Format(L"Couldn't open %s\n", (LPCTSTR)manualname);
+    mymsg.Format("Couldn't open %s\n", manualname);
     mymsg += "The most likely cause is that no viewer is registered\n";
     mymsg += "for PDF files.  If you have a PDF viewer such as Acrobat\n";
     mymsg += "Reader or Ghostview installed, you can open this file manually.";
@@ -462,9 +462,9 @@ void CMainFrame::OnHelpLicense()
 {
 
   CString licensename = theApp.GetExecutablePath() + "license.txt";
-  if (((int)ShellExecuteW(m_hWnd, L"open", licensename, L"", L"", SW_SHOWNORMAL)) <= 32) {
+  if (((int)ShellExecute(m_hWnd, "open", licensename, "", "", SW_SHOWNORMAL)) <= 32) {
     CString mymsg;
-    mymsg.Format(L"Couldn't open %s\n", (LPCTSTR)licensename);
+    mymsg.Format("Couldn't open %s\n", licensename);
     mymsg += "The most likely cause is that no viewer is registered\n";
     mymsg += "for RTF files.  If you have an RTF viewer such as Wordpad,\n";
     mymsg += "Word, or OpenOffice installed, you can open this file manually.";

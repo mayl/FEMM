@@ -722,7 +722,8 @@ for cpp in femm_cpps:
 
 # N3. CString.Replace("narrow", "narrow") → Replace(L"narrow", L"narrow")
 #     CStringW::Replace takes LPCWSTR arguments; narrow literals are rejected.
-cstring_replace_re = re.compile(r'(\.Replace\()"([^"\\]*)"')
+cstring_replace_re = re.compile(r'(\.Replace\()"((?:[^"\\]|\\.)*)"')
+cstring_replace_arg2_re = re.compile(r'(\.Replace\(L"(?:[^"\\]|\\.)*",\s*)"((?:[^"\\]|\\.)*)"')
 for cpp in femm_cpps:
     if 'build' in cpp.parts:
         continue
@@ -731,6 +732,7 @@ for cpp in femm_cpps:
     except Exception:
         continue
     new_text = cstring_replace_re.sub(r'\1L"\2"', text)
+    new_text = cstring_replace_arg2_re.sub(r'\1L"\2"', new_text)
     if new_text != text:
         cpp.write_text(new_text, encoding='utf-8')
 
@@ -1279,4 +1281,557 @@ patch_file("femm/belaviewView.cpp", [
     # outbox.Format: fixer B added L" but pDoc->GetTitle() is CString, needs (LPCTSTR) cast
     ('outbox.Format(L"Title: %s\\r\\n", pDoc->GetTitle());',
      'outbox.Format(L"Title: %s\\r\\n", (LPCTSTR)pDoc->GetTitle());'),
+])
+
+# =========================================================================
+# Source-tree migration patches (FEMM-g6q5 through FEMM-aniw)
+# These patches were previously applied directly to source files; now they
+# live here so the source tree stays in sync with upstream (cenit/FEMM).
+# =========================================================================
+
+# -------------------------------------------------------------------------
+# FEMM-g6q5: Comment out Enable3dControlsStatic() in all 4 solver entry points.
+# This call triggers a null dereference inside Wine's comctl32 during MFC init.
+# -------------------------------------------------------------------------
+for p in ["belasolv/belasolv.cpp", "csolv/csolv.cpp",
+          "fkn/fkn.cpp",           "hsolv/hsolv.cpp"]:
+    patch_file(p, [
+        ('Enable3dControlsStatic(); // Call this when linking to MFC statically',
+         '// Enable3dControlsStatic(); // crashes under Wine (null deref in comctl32)'),
+    ])
+
+# -------------------------------------------------------------------------
+# FEMM-6d09: Disable OLE/COM init (crashes Wine) + direct ExitProcess.
+# AfxOleInit() dereferences a null COM factory pointer under Wine.
+# -------------------------------------------------------------------------
+patch_file("femm/femm.cpp", [
+    # 1. Wrap AfxOleInit() block in #if 0
+    ('  // Initialize OLE libraries\n'
+     '  if (!AfxOleInit()) {\n'
+     '    MsgBox("OLE initialization failed.  Make sure that the OLE libraries are the correct version.");\n'
+     '    return FALSE;\n'
+     '  }',
+     '  // OLE/COM initialization crashes under Wine: AfxOleInit() calls\n'
+     '  // COleObjectFactory::RegisterAll() which dereferences a null pointer during\n'
+     '  // factory enumeration.  Skip all OLE init \u2014 the simulation GUI works without\n'
+     '  // COM automation (ActiveFEMM is only needed for external OLE clients, which\n'
+     "  // don't work under Wine anyway).  Re-enable these when building for native\n"
+     '  // Windows with a working COM stack.\n'
+     '#if 0\n'
+     '  if (!AfxOleInit()) {\n'
+     '    MsgBox("OLE initialization failed.  Make sure that the OLE libraries are the correct version.");\n'
+     '    return FALSE;\n'
+     '  }\n'
+     '#endif'),
+    # 2. Comment out COleTemplateServer::RegisterAll()
+    ('    COleTemplateServer::RegisterAll();',
+     '    // COleTemplateServer::RegisterAll();  // requires AfxOleInit()'),
+    # 3. Comment out COleObjectFactory::UpdateRegistryAll()
+    ('  } else {\n'
+     '    // When a server application is launched stand-alone, it is a good idea\n'
+     '    //  to update the system registry in case it has been damaged.\n'
+     '    COleObjectFactory::UpdateRegistryAll();\n'
+     '  }',
+     '  } else {\n'
+     '    // COleObjectFactory::UpdateRegistryAll();  // requires AfxOleInit()\n'
+     '  }'),
+    # 4. Comment out LIBID_ActiveFEMM IID and AfxOleRegisterTypeLib
+    ('  const IID LIBID_ActiveFEMM = { 0x04EF434A, 0x1A91, 0x495A, { 0x85, 0xAA, 0xC6, 0x25, 0x60, 0x2B, 0x4A, 0xF4 } };\n'
+     '\n'
+     '  //\tif(AfxOleRegisterTypeLib(AfxGetInstanceHandle(), LIBID_ActiveFEMM, _T("femm.TLB"))==FALSE) MsgBox("TypeLib not registered!");\n'
+     '  AfxOleRegisterTypeLib(AfxGetInstanceHandle(), LIBID_ActiveFEMM, _T("femm.TLB"), NULL);',
+     '  // const IID LIBID_ActiveFEMM = ...\n'
+     '  // AfxOleRegisterTypeLib(...);  // requires AfxOleInit()'),
+    # 5. Replace PostMessage(WM_CLOSE) with direct ExitProcess (Wine crash)
+    ('      ASSERT(AfxGetMainWnd() != NULL);\n'
+     '      AfxGetMainWnd()->PostMessage(WM_CLOSE);',
+     '      // PostMessage(WM_CLOSE) triggers MFC document/window teardown which\n'
+     '      // crashes under Wine (null vtable deref in COM cleanup). Bypass by\n'
+     '      // exiting directly \u2014 the Lua script has already written its output.\n'
+     '      lua_close(lua);\n'
+     '      ::ExitProcess(0);'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-b1wr: Comment out #define MDITAB in femm/StdAfx.h.
+# CMDITabs crashes under Wine; disabling it falls back to standard MDI frame.
+# -------------------------------------------------------------------------
+patch_file("femm/StdAfx.h", [
+    ('#define MDITAB', '// #define MDITAB'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-c71x: clang-cl requires fully-qualified method names in message maps.
+# Transforms ON_COMMAND(ID, Method) → ON_COMMAND(ID, ClassName::Method) etc.
+# -------------------------------------------------------------------------
+_msgmap_start_re = re.compile(
+    r'^\s*BEGIN_MESSAGE_MAP\s*\(\s*(\w+)\s*,\s*\w+\s*\)', re.MULTILINE)
+_on2_re = re.compile(
+    r'\b(ON_(?:COMMAND|UPDATE_COMMAND_UI|CBN_\w+|BN_\w+|LBN_\w+|EN_\w+))'
+    r'\(\s*([^,)]+?)\s*,\s*(?!&)(?![\w:]+::)([\w]+)\s*\)')
+_on3_re = re.compile(
+    r'\b(ON_NOTIFY(?:_EX)?)\('
+    r'\s*([^,)]+?)\s*,\s*([^,)]+?)\s*,\s*(?!&)(?![\w:]+::)([\w]+)\s*\)')
+
+for _src in pathlib.Path("femm").rglob("*.cpp"):
+    if "build" in _src.parts:
+        continue
+    try:
+        _text = _src.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        continue
+    _out_parts = []
+    _pos = 0
+    for _m in _msgmap_start_re.finditer(_text):
+        _classname = _m.group(1)
+        _block_start = _m.end()
+        _end_m = re.search(r'\bEND_MESSAGE_MAP\s*\(\s*\)', _text[_block_start:])
+        if not _end_m:
+            continue
+        _block_end = _block_start + _end_m.start()
+        _out_parts.append(_text[_pos:_block_start])
+        _pos = _block_start
+        _block = _text[_block_start:_block_end]
+
+        def _qualify2(mo, _cn=_classname):
+            return f'{mo.group(1)}({mo.group(2)}, {_cn}::{mo.group(3)})'
+
+        def _qualify3(mo, _cn=_classname):
+            return (f'{mo.group(1)}({mo.group(2)}, {mo.group(3)}, '
+                    f'{_cn}::{mo.group(4)})')
+
+        _block2 = _on2_re.sub(_qualify2, _block)
+        _block2 = _on3_re.sub(_qualify3, _block2)
+        _out_parts.append(_block2)
+        _pos = _block_end
+    if not _out_parts:
+        continue
+    _out_parts.append(_text[_pos:])
+    _new_text = "".join(_out_parts)
+    if _new_text != _text:
+        _src.write_text(_new_text, encoding="utf-8")
+
+# -------------------------------------------------------------------------
+# FEMM-mm6m: char→wchar_t, sprintf→swprintf, CreateProcess→CreateProcessW
+# -------------------------------------------------------------------------
+patch_file("femm/FemmeView.cpp", [
+    ('  char CommandLine[512];\n'
+     '  CString rootname = "\\"" + pn.Left(pn.ReverseFind(\'.\')) + "\\"";',
+     '  wchar_t CommandLine[512];\n'
+     '  CString rootname = L"\\"" + pn.Left(pn.ReverseFind(\'.\')) + L"\\"";'),
+    ('    sprintf(CommandLine, "\\"%sfkn.exe\\" %s bLinehook", (const char*)BinDir, (const char*)rootname);',
+     '    swprintf(CommandLine, 512, L"\\"%sfkn.exe\\" %s bLinehook", (LPCWSTR)BinDir, (LPCWSTR)rootname);'),
+    ('    sprintf(CommandLine, "\\"%sfkn.exe\\" %s", (const char*)BinDir, (const char*)rootname);',
+     '    swprintf(CommandLine, 512, L"\\"%sfkn.exe\\" %s", (LPCWSTR)BinDir, (LPCWSTR)rootname);'),
+    ('  if (CreateProcess(NULL, CommandLine, NULL, NULL, FALSE,\n'
+     '          0, NULL, MyPath, &StartupInfo2, &ProcessInfo2)) {',
+     '  if (CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE,\n'
+     '          0, NULL, MyPath, &StartupInfo2, &ProcessInfo2)) {'),
+])
+
+patch_file("femm/hdrawView.cpp", [
+    ('  char CommandLine[512];\n'
+     '  CString rootname = "\\"" + pn.Left(pn.ReverseFind(\'.\')) + "\\"";',
+     '  wchar_t CommandLine[512];\n'
+     '  CString rootname = L"\\"" + pn.Left(pn.ReverseFind(\'.\')) + L"\\"";'),
+    ('    sprintf(CommandLine, "\\"%shsolv.exe\\" %s bLinehook", (const char*)BinDir, (const char*)rootname);',
+     '    swprintf(CommandLine, 512, L"\\"%shsolv.exe\\" %s bLinehook", (LPCWSTR)BinDir, (LPCWSTR)rootname);'),
+    ('    sprintf(CommandLine, "\\"%shsolv.exe\\" %s", (const char*)BinDir, (const char*)rootname);',
+     '    swprintf(CommandLine, 512, L"\\"%shsolv.exe\\" %s", (LPCWSTR)BinDir, (LPCWSTR)rootname);'),
+    ('  if (CreateProcess(NULL, CommandLine, NULL, NULL, FALSE,\n'
+     '          0, NULL, MyPath, &StartupInfo2, &ProcessInfo2)) {',
+     '  if (CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE,\n'
+     '          0, NULL, MyPath, &StartupInfo2, &ProcessInfo2)) {'),
+])
+
+patch_file("femm/KCurve.cpp", [
+    ('    char CommandLine[MAX_PATH];\n'
+     '    sprintf(CommandLine, "%sfemmplot.exe", (const char*)((CFemmApp*)AfxGetApp())->GetExecutablePath());',
+     '    wchar_t CommandLine[MAX_PATH];\n'
+     '    swprintf(CommandLine, MAX_PATH, L"%sfemmplot.exe", (LPCWSTR)((CFemmApp*)AfxGetApp())->GetExecutablePath());'),
+    ('    CreateProcess(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);',
+     '    CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);'),
+])
+
+# femm.cpp: femmplot.exe launch + GetExecutablePath wchar_t
+patch_file("femm/femm.cpp", [
+    ('    char CommandLine[MAX_PATH];\n'
+     '    sprintf(CommandLine, "%sfemmplot.exe", (const char*)((CFemmApp*)AfxGetApp())->GetExecutablePath());',
+     '    wchar_t CommandLine[MAX_PATH];\n'
+     '    swprintf(CommandLine, MAX_PATH, L"%sfemmplot.exe", (LPCWSTR)((CFemmApp*)AfxGetApp())->GetExecutablePath());'),
+    ('    CreateProcess(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);',
+     '    CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo2, &ProcessInfo2);'),
+    ('  char szPath[MAX_PATH];\n'
+     '  char szDrive[64];\n'
+     '  char szDir[MAX_PATH];\n'
+     '\n'
+     '  GetModuleFileName(NULL, szPath, MAX_PATH);\n'
+     '  _splitpath(szPath, szDrive, szDir, NULL, NULL);',
+     '  wchar_t szPath[MAX_PATH];\n'
+     '  wchar_t szDrive[64];\n'
+     '  wchar_t szDir[MAX_PATH];\n'
+     '\n'
+     '  GetModuleFileNameW(NULL, szPath, MAX_PATH);\n'
+     '  _wsplitpath(szPath, szDrive, szDir, NULL, NULL);'),
+])
+
+patch_file("femm/MDITabs.cpp", [
+    ('  char text[256];\n'
+     '  item.pszText = text;',
+     '  wchar_t text[256];\n'
+     '  item.pszText = text;'),
+    ('    if (strlen(text) > 1) {',
+     '    if (wcslen(text) > 1) {'),
+    ('    char wndClass[32];\n'
+     '    ::GetClassName(wnd, wndClass, 32);\n'
+     '    if (strncmp(wndClass, "MDIClient", 32) == 0)',
+     '    wchar_t wndClass[32];\n'
+     '    ::GetClassName(wnd, wndClass, 32);\n'
+     '    if (wcsncmp(wndClass, L"MDIClient", 32) == 0)'),
+])
+
+patch_file("femm/MainFrm.cpp", [
+    ('  strcpy(lf.lfFaceName, "MS Sans Serif");',
+     '  wcscpy(lf.lfFaceName, L"MS Sans Serif");'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-3le1: CString→CStringA casts for fprintf/lua_pushstring/lua_error
+# (only instances NOT covered by existing generic rules S, T, C, E, H)
+# -------------------------------------------------------------------------
+patch_file("femm/FemmeDoc.cpp", [
+    ('(const char*)PrevSoln)', '(LPCSTR)CStringA(PrevSoln))'),
+    ('(const char*)s)', '(LPCSTR)CStringA(s))'),
+])
+
+patch_file("femm/FemmviewDoc.cpp", [
+    ('lua_dostring(LocalLua, str)',
+     'lua_dostring(LocalLua, (LPCSTR)CStringA(str))'),
+])
+
+patch_file("femm/FemmviewView.cpp", [
+    ('lua_pushstring(lua, dlg.BdryName)',
+     'lua_pushstring(lua, (LPCSTR)CStringA(dlg.BdryName))'),
+])
+
+patch_file("femm/KCurve.cpp", [
+    ('strcpy(buff, m_Bdata);', 'strcpy(buff, (LPCSTR)CStringA(m_Bdata));'),
+    ('strcpy(buff, m_Hdata);', 'strcpy(buff, (LPCSTR)CStringA(m_Hdata));'),
+])
+
+patch_file("femm/MyCommandLineInfo.cpp", [
+    ('lua_pushstring(lua, vardata)',
+     'lua_pushstring(lua, (LPCSTR)CStringA(vardata))'),
+    ('lua_setglobal(lua, varname)',
+     'lua_setglobal(lua, (LPCSTR)CStringA(varname))'),
+])
+
+patch_file("femm/beladrawDoc.cpp", [
+    ('fprintf(fp, "[Comment]     =  \\"%s\\"\\n", (const char*)s)',
+     'fprintf(fp, "[Comment]     =  \\"%s\\"\\n", (LPCSTR)CStringA(s))'),
+])
+
+patch_file("femm/femm.cpp", [
+    ('lua_pushstring(L, dlg.instring)',
+     'lua_pushstring(L, (LPCSTR)CStringA(dlg.instring))'),
+    ('fprintf(fp, "%s", (const char*)LuaResult)',
+     'fprintf(fp, "%s", (LPCSTR)CStringA(LuaResult))'),
+    (r'fprintf(fp, "error(\"FEMM returns:\\n%s\\n\")", (const char*)errmsg)',
+     r'fprintf(fp, "error(\"FEMM returns:\\n%s\\n\")", (LPCSTR)CStringA(errmsg))'),
+])
+
+patch_file("femm/femmeLua.cpp", [
+    ("msg.Format(L\"Couldn't load \\\"%s\\\" from the materials library\", matname)",
+     "msg.Format(L\"Couldn't load \\\"%s\\\" from the materials library\", (LPCTSTR)matname)"),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-zt5c: fopen with member-access paths + ShellExecute wide literals
+# (simple-identifier fopen already covered by section E generic regex)
+# -------------------------------------------------------------------------
+patch_file("femm/femm.cpp", [
+    ('fopen(theApp.OFile, "wt")',
+     'fopen(CStringA(theApp.OFile), "wt")'),
+    ('fopen(((CFemmApp*)AfxGetApp())->OFile, "wt")',
+     'fopen(CStringA(((CFemmApp*)AfxGetApp())->OFile), "wt")'),
+])
+
+patch_file("femm/fe_libdlg.cpp", [
+    ('ShellExecute(m_hWnd, "open", VendorURL, "", "", SW_SHOWMAXIMIZED)',
+     'ShellExecute(m_hWnd, L"open", VendorURL, L"", L"", SW_SHOWMAXIMIZED)'),
+])
+
+patch_file("femm/hd_libdlg.cpp", [
+    ('ShellExecute(m_hWnd, "open", VendorURL, "", "", SW_SHOWMAXIMIZED)',
+     'ShellExecute(m_hWnd, L"open", VendorURL, L"", L"", SW_SHOWMAXIMIZED)'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-f6h4: _T()/L"" wrapping for CFileDialog, InsertItem, etc.
+# -------------------------------------------------------------------------
+patch_file("femm/BdryDlg.cpp", [
+    ('DEFAULT_PITCH | FF_DECORATIVE, "Symbol")',
+     'DEFAULT_PITCH | FF_DECORATIVE, _T("Symbol"))'),
+])
+
+patch_file("femm/FemmeView.cpp", [
+    ('"dxf | * "', '_T("dxf | * ")'),
+    ('"CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||"',
+     '_T("CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||")'),
+])
+
+patch_file("femm/hdrawView.cpp", [
+    ('"dxf | * "', '_T("dxf | * ")'),
+    ('"CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||"',
+     '_T("CAD Drawing (*.dxf) | *.dxf; *.DXF | All Files (*.*) | *.*||")'),
+])
+
+patch_file("femm/KCurve.cpp", [
+    ('"dat | * "', '_T("dat | * ")'),
+    ('"Two column text data file (*.dat) | *.dat; *.DAT | All Files (*.*) | *.*||"',
+     '_T("Two column text data file (*.dat) | *.dat; *.DAT | All Files (*.*) | *.*||")'),
+])
+
+patch_file("femm/Xyplot.cpp", [
+    ('"txt | * "', '_T("txt | * ")'),
+    ('"Text Files (*.txt) | *.txt; *.TXT | All Files (*.*) | *.*||"',
+     '_T("Text Files (*.txt) | *.txt; *.TXT | All Files (*.*) | *.*||")'),
+])
+
+patch_file("femm/fe_libdlg.cpp", [
+    ('m_mylist.InsertItem("New Material", 2, 2, ModelParent, m_dragTargetList)',
+     'm_mylist.InsertItem(_T("New Material"), 2, 2, ModelParent, m_dragTargetList)'),
+    ('m_mylist.InsertItem("New Material", 2, 2, ModelParent, TVI_LAST)',
+     'm_mylist.InsertItem(_T("New Material"), 2, 2, ModelParent, TVI_LAST)'),
+    ('m_mytree.InsertItem("New Material", 2, 2, hParent, m_dragTargetTree)',
+     'm_mytree.InsertItem(_T("New Material"), 2, 2, hParent, m_dragTargetTree)'),
+    ('m_mytree.InsertItem("New Material", 2, 2, LibParent, TVI_LAST)',
+     'm_mytree.InsertItem(_T("New Material"), 2, 2, LibParent, TVI_LAST)'),
+    ('m_mytree.InsertItem("New Folder", 0, 1, hParent, m_dragTargetTree)',
+     'm_mytree.InsertItem(_T("New Folder"), 0, 1, hParent, m_dragTargetTree)'),
+    ('m_mytree.InsertItem("New Folder", 0, 1, LibParent, TVI_LAST)',
+     'm_mytree.InsertItem(_T("New Folder"), 0, 1, LibParent, TVI_LAST)'),
+    ('m_mytree.InsertItem("Imported Materials", 0, 1, LibParent, TVI_FIRST)',
+     'm_mytree.InsertItem(_T("Imported Materials"), 0, 1, LibParent, TVI_FIRST)'),
+    ('"fem | * "', '_T("fem | * ")'),
+    ('"Magnetostatic Input File (*.fem) | *.fem; *.FEM | All Files (*.*) | *.*||"',
+     '_T("Magnetostatic Input File (*.fem) | *.fem; *.FEM | All Files (*.*) | *.*||")'),
+])
+
+patch_file("femm/hd_libdlg.cpp", [
+    ('m_mylist.InsertItem("New Material", 2, 2, ModelParent, m_dragTargetList)',
+     'm_mylist.InsertItem(_T("New Material"), 2, 2, ModelParent, m_dragTargetList)'),
+    ('m_mylist.InsertItem("New Material", 2, 2, ModelParent, TVI_LAST)',
+     'm_mylist.InsertItem(_T("New Material"), 2, 2, ModelParent, TVI_LAST)'),
+    ('m_mytree.InsertItem("New Material", 2, 2, hParent, m_dragTargetTree)',
+     'm_mytree.InsertItem(_T("New Material"), 2, 2, hParent, m_dragTargetTree)'),
+    ('m_mytree.InsertItem("New Material", 2, 2, LibParent, TVI_LAST)',
+     'm_mytree.InsertItem(_T("New Material"), 2, 2, LibParent, TVI_LAST)'),
+    ('m_mytree.InsertItem("New Folder", 0, 1, hParent, m_dragTargetTree)',
+     'm_mytree.InsertItem(_T("New Folder"), 0, 1, hParent, m_dragTargetTree)'),
+    ('m_mytree.InsertItem("New Folder", 0, 1, LibParent, TVI_LAST)',
+     'm_mytree.InsertItem(_T("New Folder"), 0, 1, LibParent, TVI_LAST)'),
+    ('m_mytree.InsertItem("Imported Materials", 0, 1, LibParent, TVI_FIRST)',
+     'm_mytree.InsertItem(_T("Imported Materials"), 0, 1, LibParent, TVI_FIRST)'),
+    ('"fem | * "', '_T("fem | * ")'),
+    ('"Magnetostatic Input File (*.fem) | *.fem; *.FEM | All Files (*.*) | *.*||"',
+     '_T("Magnetostatic Input File (*.fem) | *.fem; *.FEM | All Files (*.*) | *.*||")'),
+])
+
+patch_file("femm/bd_libdlg.cpp", [
+    ('m_mytree.InsertItem("Imported Materials", 0, 1, LibParent, TVI_FIRST)',
+     'm_mytree.InsertItem(_T("Imported Materials"), 0, 1, LibParent, TVI_FIRST)'),
+])
+
+patch_file("femm/LuaConsoleDlg.cpp", [
+    ('ConsoleOutput.ReplaceSel("")',
+     'ConsoleOutput.ReplaceSel(L"")'),
+])
+
+patch_file("femm/MyRecentFileList.cpp", [
+    ('lstrcpy(lpszCanon, (bAtLeastName) ? lpszFileName : "")',
+     'lstrcpy(lpszCanon, (bAtLeastName) ? lpszFileName : L"")'),
+])
+
+patch_file("femm/femm.cpp", [
+    ('static char BASED_CODE szFilter[] = "Lua Script Files (*.lua)|*.lua|";',
+     'static TCHAR BASED_CODE szFilter[] = _T("Lua Script Files (*.lua)|*.lua|");'),
+    ('char ext[] = ".lua";',
+     'TCHAR ext[] = _T(".lua");'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-2o65: Format(L"[%s:%i]", CString, int) — add (LPCTSTR) cast
+# (fixer G skips multi-arg Format calls)
+# -------------------------------------------------------------------------
+patch_file("femm/FemmeView.cpp", [
+    ('lbl.Format(L"[%s:%i]", pDoc->circproplist[k].CircName,',
+     'lbl.Format(L"[%s:%i]", (LPCTSTR)pDoc->circproplist[k].CircName,'),
+])
+
+patch_file("femm/FemmviewView.cpp", [
+    ('lbl.Format(L"[%s:%i]", pDoc->circproplist[k].CircName,',
+     'lbl.Format(L"[%s:%i]", (LPCTSTR)pDoc->circproplist[k].CircName,'),
+])
+
+patch_file("femm/FemmviewDoc.cpp", [
+    ('str.Format(L"x=%.17g\\ny=%.17g\\nr=x\\nz=y\\ntheta=%.17g\\nR=%.17g\\nreturn %s",\n'
+     '          X.re, X.im, arg(X) * 180 / PI, abs(X), blocklist[meshelem[i].lbl].MagDirFctn);',
+     'str.Format(L"x=%.17g\\ny=%.17g\\nr=x\\nz=y\\ntheta=%.17g\\nR=%.17g\\nreturn %s",\n'
+     '          X.re, X.im, arg(X) * 180 / PI, abs(X), (LPCTSTR)blocklist[meshelem[i].lbl].MagDirFctn);'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-io8r: CComplex temporary variable workaround for CArray::Add
+# -------------------------------------------------------------------------
+_newnodes_old = (
+    "    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE)\n"
+    "      newnodes.Add(CComplex(xi, yi));"
+)
+_newnodes_new = (
+    "    if (GetIntersection(n0, n1, i, &xi, &yi) == TRUE) {\n"
+    "      CComplex _tmp(xi, yi); newnodes.Add(_tmp);\n"
+    "    }"
+)
+for p in ["femm/FemmeDoc.cpp", "femm/beladrawDoc.cpp", "femm/hd_movecopy.cpp"]:
+    patch_file(p, [(_newnodes_old, _newnodes_new)])
+
+_contour_old = (
+    "  // add the points on the contour\n"
+    "  for (k = 1; k <= n; k++)\n"
+    "    contour.Add(c + (a0 - c) * exp(k * I * dtta));"
+)
+_contour_new = (
+    "  // add the points on the contour\n"
+    "  for (k = 1; k <= n; k++) {\n"
+    "    CComplex _tmp = c + (a0 - c) * exp(k * I * dtta); contour.Add(_tmp);\n"
+    "  }"
+)
+for p in ["femm/FemmviewDoc.cpp", "femm/belaviewDoc.cpp", "femm/hviewDoc.cpp"]:
+    patch_file(p, [(_contour_old, _contour_new)])
+
+# -------------------------------------------------------------------------
+# FEMM-f4uw: MsgBox FormatV fix in femm/StdAfx.cpp
+# -------------------------------------------------------------------------
+patch_file("femm/StdAfx.cpp", [
+    ('ach.FormatV(sz, args);',
+     '{ CStringA narrow; narrow.FormatV(sz, args); ach = CString(narrow); }'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-voxg: Include path case fixes
+# -------------------------------------------------------------------------
+patch_file("femm/MDITabs.cpp", [
+    ('#include <AFXPRIV.H>', '#include <afxpriv.h>'),
+])
+
+patch_file("femm/MyRecentFileList.h", [
+    ('#include < afxadv.h>', '#include <afxadv.h>'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-vlhm: CString(v) wrapping for SetItemText, TextOut, AfxMessageBox
+# -------------------------------------------------------------------------
+patch_file("femm/fe_libdlg.cpp", [
+    ('m_mytree.SetItemText(Parent, v);', 'm_mytree.SetItemText(Parent, CString(v));'),
+])
+
+patch_file("femm/hd_libdlg.cpp", [
+    ('m_mytree.SetItemText(Parent, v);', 'm_mytree.SetItemText(Parent, CString(v));'),
+])
+
+patch_file("femm/Xyplot.cpp", [
+    ('pDC->TextOut((int)(OffsetX + Width + 10.), ((int)OffsetY) + 14 * i, lbls[i], (int)strlen(lbls[i]))',
+     '{ CString _t(lbls[i]); pDC->TextOut((int)(OffsetX + Width + 10.), ((int)OffsetY) + 14 * i, _t, _t.GetLength()); }'),
+    ('pDC->TextOut(200, (int)(OffsetY + Height + 30), lbls[0], (int)strlen(lbls[0]))',
+     '{ CString _t(lbls[0]); pDC->TextOut(200, (int)(OffsetY + Height + 30), _t, _t.GetLength()); }'),
+    ('pDC->TextOut(((int)OffsetX) - 10, (i * (int)Height) / k + (int)OffsetY - 6, s, (int)strlen(s))',
+     '{ CString _t(s); pDC->TextOut(((int)OffsetX) - 10, (i * (int)Height) / k + (int)OffsetY - 6, _t, _t.GetLength()); }'),
+    ('pDC->TextOut((int)(((double)i) * d + OffsetX), (int)OffsetY + (int)Height + 10, s, (int)strlen(s))',
+     '{ CString _t(s); pDC->TextOut((int)(((double)i) * d + OffsetX), (int)OffsetY + (int)Height + 10, _t, _t.GetLength()); }'),
+])
+
+patch_file("femm/FemmviewView.cpp", [
+    ('AfxMessageBox(s, MB_ICONINFORMATION)', 'AfxMessageBox(CString(s), MB_ICONINFORMATION)'),
+])
+
+patch_file("femm/cviewView.cpp", [
+    ('AfxMessageBox(s, MB_ICONINFORMATION)', 'AfxMessageBox(CString(s), MB_ICONINFORMATION)'),
+])
+
+# -------------------------------------------------------------------------
+# FEMM-aniw: CatchNullDocument macro cleanup in beladrawLua.cpp
+# -------------------------------------------------------------------------
+patch_file("femm/beladrawLua.cpp", [
+    ('#define CatchNullDocument()                                   \\\n'
+     '  ;                                                           \\\n'
+     '  if (pBeladrawDoc == NULL) {                                 \\\n'
+     '    CString msg = "No current electrostatics input in focus"; \\\n'
+     '    lua_error(L, msg.GetBuffer(1));                           \\\n'
+     '    return 0;                                                 \\\n'
+     '  }',
+     '#define CatchNullDocument()                                              \\\n'
+     '  ;                                                                      \\\n'
+     '  if (pBeladrawDoc == NULL) {                                            \\\n'
+     '    lua_error(L, "No current electrostatics input in focus");            \\\n'
+     '    return 0;                                                            \\\n'
+     '  }'),
+])
+
+# -------------------------------------------------------------------------
+# Additional fixes found during build verification
+# -------------------------------------------------------------------------
+
+# writepoly.cpp: char→wchar_t, sprintf→swprintf, CreateProcess→CreateProcessW, fprintf CStringA
+patch_file("femm/writepoly.cpp", [
+    ('  CString rootname = "\\"" + pn.Left(pn.ReverseFind(\'.\')) + "\\"";\n'
+     '  char CommandLine[512];\n'
+     '  sprintf(CommandLine, "\\"%striangle.exe\\" -p -P -j -q%f -e -A -a -z -Q -I %s",\n'
+     '      (const char*)BinDir, __min(MinAngle + MINANGLE_BUMP, MINANGLE_MAX), (const char*)rootname);',
+     '  CString rootname = L"\\"" + pn.Left(pn.ReverseFind(\'.\')) + L"\\"";\n'
+     '  wchar_t CommandLine[512];\n'
+     '  swprintf(CommandLine, 512, L"\\"%striangle.exe\\" -p -P -j -q%f -e -A -a -z -Q -I %s",\n'
+     '      (LPCWSTR)BinDir, __min(MinAngle + MINANGLE_BUMP, MINANGLE_MAX), (LPCWSTR)rootname);'),
+    ('  if (CreateProcess(NULL, CommandLine, NULL, NULL, FALSE,\n'
+     '          0, NULL, NULL, &StartupInfo, &ProcessInfo)) {',
+     '  if (CreateProcessW(NULL, CommandLine, NULL, NULL, FALSE,\n'
+     '          0, NULL, NULL, &StartupInfo, &ProcessInfo)) {'),
+    ('  rootname = "\\"" + pn.Left(pn.ReverseFind(\'.\')) + "\\"";\n'
+     '  sprintf(CommandLine, "\\"%striangle.exe\\" -p -P -j -q%f -e -A -a -z -Q -I -Y %s",\n'
+     '      (const char*)BinDir, __min(MinAngle + MINANGLE_BUMP, MINANGLE_MAX), (const char*)rootname);',
+     '  rootname = L"\\"" + pn.Left(pn.ReverseFind(\'.\')) + L"\\"";\n'
+     '  swprintf(CommandLine, 512, L"\\"%striangle.exe\\" -p -P -j -q%f -e -A -a -z -Q -I -Y %s",\n'
+     '      (LPCWSTR)BinDir, __min(MinAngle + MINANGLE_BUMP, MINANGLE_MAX), (LPCWSTR)rootname);'),
+    ('fprintf(fp, "\\"%s\\"\\n", agelst[k].BdryName.GetString());',
+     'fprintf(fp, "\\"%s\\"\\n", (LPCSTR)CStringA(agelst[k].BdryName));'),
+])
+
+# hviewView.cpp: AfxMessageBox(char[], ...) needs CString wrapping
+patch_file("femm/hviewView.cpp", [
+    ('AfxMessageBox(s, MB_ICONINFORMATION)', 'AfxMessageBox(CString(s), MB_ICONINFORMATION)'),
+])
+
+# luaDDX.cpp: Format with narrow literal, lua_dostring with CString arg,
+#             AfxMessageBox with narrow literal
+patch_file("femm/luaDDX.cpp", [
+    ('tmp.Format(L"%s", ToString(x, 16))',
+     'tmp.Format(L"%s", (LPCTSTR)ToString(x, 16))'),
+    ('lua_dostring(lua, tolua)',
+     'lua_dostring(lua, CStringA(tolua))'),
+    ('lua_dostring(LocalLua, tolua)',
+     'lua_dostring(LocalLua, CStringA(tolua))'),
+    ('AfxMessageBox("Input does not evaluate to a numerical value")',
+     'AfxMessageBox(L"Input does not evaluate to a numerical value")'),
+])
+
+# MainFrm.cpp: ShellExecute with narrow strings + Format with CString variadic
+patch_file("femm/MainFrm.cpp", [
+    ('ShellExecute(m_hWnd, "open", manualname, "", "", SW_SHOWMAXIMIZED)',
+     'ShellExecute(m_hWnd, L"open", manualname, L"", L"", SW_SHOWMAXIMIZED)'),
+    ('ShellExecute(m_hWnd, "open", licensename, "", "", SW_SHOWNORMAL)',
+     'ShellExecute(m_hWnd, L"open", licensename, L"", L"", SW_SHOWNORMAL)'),
+    (r'mymsg.Format(L"Couldn' + "'" + r't open %s\n", manualname)',
+     r'mymsg.Format(L"Couldn' + "'" + r't open %s\n", (LPCTSTR)manualname)'),
+    (r'mymsg.Format(L"Couldn' + "'" + r't open %s\n", licensename)',
+     r'mymsg.Format(L"Couldn' + "'" + r't open %s\n", (LPCTSTR)licensename)'),
 ])
