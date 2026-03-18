@@ -70,6 +70,7 @@ nix develop .#build --command just build-target fkn
 ```
 
 **Key facts:**
+- **Do NOT modify FEMM source files directly.** All build-time source fixes go in `scripts/patch-sources.py`, which is applied automatically during both `nix build .#femm-built` and `just sync-build`. This keeps the upstream source tree pristine and all patches in one auditable place. Use `patch_file("path/to/file.cpp", [("old text", "new text"), ...])` to add fixes.
 - Source edits go in the **main tree** (`femm/`, `fkn/`, etc.). Never edit `build/src/` directly.
 - `just sync-build` rsyncs your edits to `build/src/`, re-applies `scripts/patch-sources.py` (needed because rsync `--delete` removes patch-created symlinks/files), then runs ninja.
 - Cross-compiles to Windows (clang-cl targeting x86_64-pc-windows-msvc). `WIN32` is always true in this build.
@@ -80,6 +81,7 @@ nix develop .#build --command just build-target fkn
   - Latin-1 → UTF-8 encoding
   - `DLGINIT` → integer type `240` (llvm-rc doesn't know DLGINIT = RT_DLGINIT, stores as string-named resource; MFC looks up by integer → empty combo boxes)
   - `TOOLBAR` → integer type `241` as raw binary (llvm-rc doesn't support TOOLBAR syntax)
+  - ResizableLib null-pointer fix: `GetMenu()->GetSafeHmenu()` → NULL-safe (clang optimizes away the UB null-this check that MSVC tolerates)
 
 ## Landing the Plane (Session Completion)
 

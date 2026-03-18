@@ -332,6 +332,7 @@ ENDTOOLCHAIN
         installPhase = ''
           mkdir -p $out/bin
           ninja -C build install
+          cp bin/*.dat $out/bin/
         '';
       };
 

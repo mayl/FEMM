@@ -1835,3 +1835,32 @@ patch_file("femm/MainFrm.cpp", [
     (r'mymsg.Format(L"Couldn' + "'" + r't open %s\n", licensename)',
      r'mymsg.Format(L"Couldn' + "'" + r't open %s\n", (LPCTSTR)licensename)'),
 ])
+
+# ResizableLib: GetMenu()->GetSafeHmenu() null-pointer dereference.
+# GetMenu() returns NULL for dialogs without a menu bar.  The old code
+# relied on MFC's GetSafeHmenu() tolerating this==NULL, but calling a
+# member function on NULL is C++ UB and clang optimises the check away.
+# ResizableDialog.cpp is indented 4 spaces (inside if-block)
+patch_file("ResizableLib/ResizableDialog.cpp", [
+    ('    // adjust size to reflect new style\n'
+     '    ::AdjustWindowRectEx(&rect, GetStyle(),\n'
+     '        ::IsMenu(GetMenu()->GetSafeHmenu()), GetExStyle());',
+     '    // adjust size to reflect new style\n'
+     '    CMenu* pMenu = GetMenu();\n'
+     '    ::AdjustWindowRectEx(&rect, GetStyle(),\n'
+     '        pMenu != NULL && ::IsMenu(pMenu->GetSafeHmenu()), GetExStyle());'),
+])
+# ResizableSheet/SheetEx are indented 2 spaces (top-level in function)
+for resizable_src in [
+    "ResizableLib/ResizableSheet.cpp",
+    "ResizableLib/ResizableSheetEx.cpp",
+]:
+    patch_file(resizable_src, [
+        ('  // adjust size to reflect new style\n'
+         '  ::AdjustWindowRectEx(&rect, GetStyle(),\n'
+         '      ::IsMenu(GetMenu()->GetSafeHmenu()), GetExStyle());',
+         '  // adjust size to reflect new style\n'
+         '  CMenu* pMenu = GetMenu();\n'
+         '  ::AdjustWindowRectEx(&rect, GetStyle(),\n'
+         '      pMenu != NULL && ::IsMenu(pMenu->GetSafeHmenu()), GetExStyle());'),
+    ])
