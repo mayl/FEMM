@@ -343,7 +343,7 @@ ENDTOOLCHAIN
       mkTestRunner = { name, femmeExeArg ? "" }:
         pkgs.writeShellApplication {
           inherit name;
-          runtimeInputs = [ pkgs.python3 ];
+          runtimeInputs = [ pkgs.python3 pkgs.imagemagick ];
           text = ''
             exec python3 ${self}/tests/runner.py \
               --flake ${self} \

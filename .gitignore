@@ -46,6 +46,9 @@ bin/statlib.dat
 
 *.patch
 
+# Generated test artifacts
+tests/*/animation.gif
+
 # Dolt database files (added by bd init)
 .dolt/
 *.db

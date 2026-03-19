@@ -206,6 +206,37 @@ def linux_to_wine(path):
     return ("Z:" + str(path)).replace("/", "\\").lower()
 
 
+def maybe_generate_gif(work_dir, test_dir):
+    """Convert BMP frames (T1.bmp..T20.bmp) into an animated GIF if possible."""
+    bmp_frames = sorted(work_dir.glob("T[0-9]*.bmp"),
+                        key=lambda p: int(p.stem[1:]))
+    # ho_savebitmap only produces valid images in interactive mode (needs a
+    # visible window).  In headless mode the BMPs are empty stubs (~58 bytes).
+    if not bmp_frames or bmp_frames[0].stat().st_size <= 1024:
+        return
+    gif_path = work_dir / "animation.gif"
+    magick = shutil.which("magick") or shutil.which("convert")
+    if not magick:
+        print(f"  Warning: 'magick'/'convert' (ImageMagick) not found, skipping GIF")
+        return
+    try:
+        subprocess.run(
+            [magick, "-delay", "20", "-loop", "0"]
+            + [str(f) for f in bmp_frames]
+            + [str(gif_path)],
+            check=True, capture_output=True, text=True,
+        )
+        # Copy to test dir if writable
+        dest = test_dir / "animation.gif"
+        try:
+            shutil.copy(gif_path, dest)
+            print(f"  Animation: {dest} ({len(bmp_frames)} frames)")
+        except OSError:
+            print(f"  Animation: {gif_path} ({len(bmp_frames)} frames)")
+    except subprocess.CalledProcessError as e:
+        print(f"  Warning: GIF generation failed: {e.stderr or e}")
+
+
 # ── per-test logic ────────────────────────────────────────────────────────────
 
 def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interactive=False,
@@ -248,6 +279,7 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
             run_femm(flake_dir, wine_script, wine_outdir, interactive=True, femm_exe=femm_exe)
         except Exception as e:
             print(f"  FEMM session ended: {e}")
+        maybe_generate_gif(work_dir, test_dir)
         return True
 
     print(f"  Running FEMM (headless)...")
@@ -263,15 +295,19 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
     results_file = work_dir / "results.txt"
     ans_file = work_dir / "sim.ans"
 
+    maybe_generate_gif(work_dir, test_dir)
+
     if not results_file.exists() or results_file.stat().st_size == 0:
         print("  ERROR: results.txt missing or empty (Lua post-processing failed)")
         return False
-    if not ans_file.exists():
-        print("  ERROR: sim.ans not produced (solver did not run)")
-        return False
 
     scalars = parse_results(results_file)
-    ans_data = parse_ans(ans_file)
+
+    # .ans parsing is optional — heat-flow tests produce .anh files, not sim.ans
+    if ans_file.exists():
+        ans_data = parse_ans(ans_file)
+    else:
+        ans_data = None
 
     # ── update-baseline mode ──────────────────────────────────────────────────
     if update_baseline:
@@ -289,25 +325,26 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
             }
         new_expected["scalars"] = new_scalars
 
-        # ans section
-        new_ans = dict(expected.get("ans", {}))
-        old_stats = expected.get("ans", {}).get("A_stats", {})
-        new_A_stats = {}
-        for k, v in ans_data["A_stats"].items():
-            old_s = old_stats.get(k, {})
-            new_A_stats[k] = {
-                "expected": v,
-                "tol": old_s.get("tol", abs(v) * 0.01 or 1e-9),
-                "note": old_s.get("note", ""),
+        # ans section (only if sim.ans was produced — magnetics tests only)
+        if ans_data is not None:
+            new_ans = dict(expected.get("ans", {}))
+            old_stats = expected.get("ans", {}).get("A_stats", {})
+            new_A_stats = {}
+            for k, v in ans_data["A_stats"].items():
+                old_s = old_stats.get(k, {})
+                new_A_stats[k] = {
+                    "expected": v,
+                    "tol": old_s.get("tol", abs(v) * 0.01 or 1e-9),
+                    "note": old_s.get("note", ""),
+                }
+            new_ans["A_stats"] = new_A_stats
+            old_bv = expected.get("ans", {}).get("block_values", {})
+            new_ans["block_values"] = {
+                "expected": ans_data["block_values"],
+                "tol": old_bv.get("tol", 1e-6),
+                "note": old_bv.get("note", ""),
             }
-        new_ans["A_stats"] = new_A_stats
-        old_bv = expected.get("ans", {}).get("block_values", {})
-        new_ans["block_values"] = {
-            "expected": ans_data["block_values"],
-            "tol": old_bv.get("tol", 1e-6),
-            "note": old_bv.get("note", ""),
-        }
-        new_expected["ans"] = new_ans
+            new_expected["ans"] = new_ans
 
         expected_json.write_text(json.dumps(new_expected, indent=2))
         print(f"  Baseline updated: {expected_json}")
@@ -324,28 +361,29 @@ def run_test(test_dir, flake_dir, verbose=False, update_baseline=False, interact
         checks.append(check_tol(key, scalars[key], spec["expected"], spec["tol"],
                                  spec.get("note", "")))
 
-    # ── compare .ans features ─────────────────────────────────────────────────
+    # ── compare .ans features (magnetics only — skipped for heat tests) ──────
     ans_spec = expected.get("ans", {})
 
-    for stat_name, spec in ans_spec.get("A_stats", {}).items():
-        checks.append(check_tol(f"ans.A_{stat_name}",
-                                 ans_data["A_stats"][stat_name],
-                                 spec["expected"], spec["tol"],
-                                 spec.get("note", "")))
+    if ans_data is not None:
+        for stat_name, spec in ans_spec.get("A_stats", {}).items():
+            checks.append(check_tol(f"ans.A_{stat_name}",
+                                     ans_data["A_stats"][stat_name],
+                                     spec["expected"], spec["tol"],
+                                     spec.get("note", "")))
 
-    bv_spec = ans_spec.get("block_values", {})
-    if bv_spec:
-        actual_bv  = ans_data["block_values"]
-        expected_bv = bv_spec["expected"]
-        tol_bv     = bv_spec["tol"]
-        if len(actual_bv) != len(expected_bv):
-            checks.append(CheckResult("ans.block_values[count]",
-                                       len(actual_bv), len(expected_bv), None, False,
-                                       "block count mismatch"))
-        else:
-            for i, (a, e) in enumerate(zip(actual_bv, expected_bv)):
-                checks.append(check_tol(f"ans.block_values[{i}]", a, e, tol_bv,
-                                         bv_spec.get("note", "")))
+        bv_spec = ans_spec.get("block_values", {})
+        if bv_spec:
+            actual_bv  = ans_data["block_values"]
+            expected_bv = bv_spec["expected"]
+            tol_bv     = bv_spec["tol"]
+            if len(actual_bv) != len(expected_bv):
+                checks.append(CheckResult("ans.block_values[count]",
+                                           len(actual_bv), len(expected_bv), None, False,
+                                           "block count mismatch"))
+            else:
+                for i, (a, e) in enumerate(zip(actual_bv, expected_bv)):
+                    checks.append(check_tol(f"ans.block_values[{i}]", a, e, tol_bv,
+                                             bv_spec.get("note", "")))
 
     # ── report ────────────────────────────────────────────────────────────────
     failures = [c for c in checks if not c.passed]

@@ -1,0 +1,91 @@
+{
+  "description": "Transient heat conduction: 4in-dia x 4in-tall 2024-T6 Al cylinder, 300K->400K step, 20x1s implicit Euler",
+  "baseline_date": "2026-03-18",
+  "scalars": {
+    "T_center_5s_K": {
+      "expected": 336.1777313959,
+      "tol": 0.05,
+      "note": "center temp at t=5s, warming from 300K"
+    },
+    "T_center_10s_K": {
+      "expected": 375.151755621,
+      "tol": 0.05,
+      "note": "center temp at t=10s"
+    },
+    "T_center_15s_K": {
+      "expected": 391.1426767863,
+      "tol": 0.05,
+      "note": "center temp at t=15s"
+    },
+    "T_center_20s_K": {
+      "expected": 396.8794656401,
+      "tol": 0.05,
+      "note": "center temp at t=20s, approaching 400K"
+    },
+    "T_midrad_5s_K": {
+      "expected": 353.6753807153,
+      "tol": 0.05,
+      "note": "mid-radius temp at t=5s"
+    },
+    "T_midrad_10s_K": {
+      "expected": 383.222123553,
+      "tol": 0.05,
+      "note": "mid-radius temp at t=10s"
+    },
+    "T_midrad_15s_K": {
+      "expected": 394.0692094369,
+      "tol": 0.05,
+      "note": "mid-radius temp at t=15s"
+    },
+    "T_midrad_20s_K": {
+      "expected": 397.9124417093,
+      "tol": 0.05,
+      "note": "mid-radius temp at t=20s"
+    },
+    "T_avg_5s_K": {
+      "expected": 379.5194137079,
+      "tol": 0.05,
+      "note": "volume-average temp at t=5s"
+    },
+    "T_avg_10s_K": {
+      "expected": 393.0376737992,
+      "tol": 0.05,
+      "note": "volume-average temp at t=10s"
+    },
+    "T_avg_15s_K": {
+      "expected": 397.5618204525,
+      "tol": 0.05,
+      "note": "volume-average temp at t=15s"
+    },
+    "T_avg_20s_K": {
+      "expected": 399.1430209448,
+      "tol": 0.05,
+      "note": "volume-average temp at t=20s"
+    },
+    "T_near_surf_20s_K": {
+      "expected": 399.5940508578,
+      "tol": 0.05,
+      "note": "near-surface (r=1.8in) temp at t=20s"
+    },
+    "T_quarter_20s_K": {
+      "expected": 397.7916370899,
+      "tol": 0.05,
+      "note": "quarter-height centre (r=0,z=1) temp at t=20s"
+    },
+    "Fx_midrad_20s": {
+      "expected": -13006.61141,
+      "tol": 15.0,
+      "note": "radial heat flux at mid-radius (W/m^2), t=20s"
+    },
+    "Fy_midrad_20s": {
+      "expected": -6.5879108105,
+      "tol": 1.0,
+      "note": "axial heat flux at mid-radius (W/m^2), t=20s, near zero by symmetry"
+    },
+    "Gx_midrad_20s": {
+      "expected": -73.483680284,
+      "tol": 0.1,
+      "note": "radial temperature gradient at mid-radius (K/m), t=20s"
+    }
+  }
+}
